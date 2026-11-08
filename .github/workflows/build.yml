@@ -25,13 +25,16 @@ jobs:
 
       - name: Restore signing key
         env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
         run: |
-          if [ -z "$KEYSTORE_BASE64" ]; then
-            echo "::error::Secret KEYSTORE_BASE64 is missing. Add it in Settings > Secrets and variables > Actions."
+          if [ -z "$KEYSTORE_PASSWORD" ]; then
+            echo "::error::Secret KEYSTORE_PASSWORD is missing."
             exit 1
           fi
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          # Keystore is stored AES-256 encrypted in the repo; only the secret password unlocks it.
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+            -in signing/release.jks.enc -out "$RUNNER_TEMP/release.jks" -pass env:KEYSTORE_PASSWORD
+          keytool -list -keystore "$RUNNER_TEMP/release.jks" -storepass "$KEYSTORE_PASSWORD" > /dev/null
           echo "KEYSTORE_FILE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
 
       - name: Build release APK
