@@ -35,6 +35,7 @@ import gr.nikkpap.airseries.ui.discover.DiscoverScreen
 import gr.nikkpap.airseries.ui.home.HomeScreen
 import gr.nikkpap.airseries.ui.library.LibraryScreen
 import gr.nikkpap.airseries.ui.schedule.ScheduleScreen
+import gr.nikkpap.airseries.ui.settings.AboutScreen
 import gr.nikkpap.airseries.ui.settings.SettingsScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -92,7 +93,8 @@ fun AppNav(pendingShow: MutableStateFlow<Int?>) {
             composable(Tab.Library.route) {
                 LibraryScreen(onOpen = openShow, onSettings = openSettings, onDiscover = { nav.goTab(Tab.Discover.route) })
             }
-            composable("settings") { SettingsScreen(onBack = { nav.popBackStack() }) }
+            composable("settings") { SettingsScreen(onBack = { nav.popBackStack() }, onAbout = { nav.navigate("about") }) }
+            composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }
             composable("show/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { e ->
                 DetailScreen(showId = e.arguments?.getInt("id") ?: 0, onBack = { nav.popBackStack() })
             }

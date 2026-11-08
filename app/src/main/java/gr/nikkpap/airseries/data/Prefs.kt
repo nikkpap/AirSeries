@@ -47,12 +47,17 @@ class Prefs(ctx: Context) {
         get() = sp.getInt(K_PAGE, 0)
         set(v) = sp.edit().putInt(K_PAGE, v).apply()
 
+    var batteryBannerDismissed: Boolean
+        get() = sp.getBoolean(K_BAT, false)
+        set(v) = sp.edit().putBoolean(K_BAT, v).apply()
+
     var lastNotifiedUpdate: Int
         get() = sp.getInt(K_UPD, 0)
         set(v) = sp.edit().putInt(K_UPD, v).apply()
 
     companion object {
         private const val K_UPD = "last_notified_update"
+        private const val K_BAT = "battery_banner_dismissed"
         private const val K_NOTIFY = "notify"
         private const val K_OFFSET = "notify_offset"
         private const val K_ANNOUNCE = "notify_announce"

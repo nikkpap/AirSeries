@@ -22,6 +22,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
@@ -30,6 +32,7 @@ import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -54,10 +57,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.os.LocaleListCompat
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import gr.nikkpap.airseries.BuildConfig
 import gr.nikkpap.airseries.R
 import gr.nikkpap.airseries.container
+import gr.nikkpap.airseries.util.Battery
 import gr.nikkpap.airseries.util.formatDateTime
 import gr.nikkpap.airseries.util.openUrl
 import gr.nikkpap.airseries.work.Notifier
@@ -69,7 +74,7 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit) {
     val ctx = LocalContext.current
     val c = ctx.container
     val p = c.prefs
@@ -83,6 +88,11 @@ fun SettingsScreen(onBack: () -> Unit) {
     val dynamic by p.dynamicColor.collectAsStateWithLifecycle()
     val lastSync by p.lastSync.collectAsStateWithLifecycle()
     var working by remember { mutableStateOf(false) }
+    var batteryOk by remember { mutableStateOf(Battery.isUnrestricted(ctx)) }
+    LifecycleResumeEffect(Unit) {
+        batteryOk = Battery.isUnrestricted(ctx)
+        onPauseOrDispose { }
+    }
 
     fun toast(res: Int, vararg args: Any) = Toast.makeText(ctx, ctx.getString(res, *args), Toast.LENGTH_LONG).show()
 
@@ -139,6 +149,29 @@ fun SettingsScreen(onBack: () -> Unit) {
                 modifier = Modifier.clickable {
                     ctx.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, ctx.packageName))
                 },
+            )
+            HorizontalDivider()
+
+            // ---- battery ----
+            Header(R.string.bat_header)
+            ListItem(
+                leadingContent = {
+                    Icon(
+                        if (batteryOk) Icons.Filled.BatteryFull else Icons.Filled.BatteryAlert, null,
+                        tint = if (batteryOk) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+                    )
+                },
+                headlineContent = { Text(stringResource(if (batteryOk) R.string.bat_ok else R.string.bat_restricted)) },
+                supportingContent = { Text(stringResource(if (batteryOk) R.string.bat_ok_desc else R.string.bat_restricted_desc)) },
+                trailingContent = {
+                    if (!batteryOk) Button(onClick = { Battery.requestUnrestricted(ctx) }) { Text(stringResource(R.string.bat_fix)) }
+                },
+                modifier = Modifier.clickable { if (batteryOk) Battery.openBatterySettings(ctx) else Battery.requestUnrestricted(ctx) },
+            )
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.bat_brand, Build.MANUFACTURER.replaceFirstChar { it.uppercase() })) },
+                supportingContent = { Text(stringResource(R.string.bat_brand_desc)) },
+                modifier = Modifier.clickable { Battery.openBrandGuide(ctx) },
             )
             HorizontalDivider()
 
@@ -200,6 +233,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 leadingContent = { Icon(Icons.Filled.Info, null) },
                 headlineContent = { Text("${stringResource(R.string.app_name)} v${BuildConfig.VERSION_NAME}") },
                 supportingContent = { Text(stringResource(R.string.about_text)) },
+                modifier = Modifier.clickable(onClick = onAbout),
             )
             ListItem(
                 leadingContent = { Icon(Icons.Filled.SystemUpdate, null) },

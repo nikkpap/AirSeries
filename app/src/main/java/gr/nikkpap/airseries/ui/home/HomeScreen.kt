@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Settings
@@ -34,9 +35,12 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -47,9 +51,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewModelScope
 import gr.nikkpap.airseries.R
+import gr.nikkpap.airseries.container
+import gr.nikkpap.airseries.util.Battery
 import gr.nikkpap.airseries.data.Repository
 import gr.nikkpap.airseries.data.ShowProgress
 import gr.nikkpap.airseries.data.buildProgress
@@ -112,6 +119,12 @@ fun HomeScreen(onOpen: (Int) -> Unit, onSettings: () -> Unit, onDiscover: () -> 
     val snack = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     val ctx = LocalContext.current
+    val prefs = ctx.container.prefs
+    var showBattery by remember { mutableStateOf(false) }
+    LifecycleResumeEffect(Unit) {
+        showBattery = !prefs.batteryBannerDismissed && !Battery.isUnrestricted(ctx)
+        onPauseOrDispose { }
+    }
 
     Scaffold(
         topBar = {
@@ -137,6 +150,14 @@ fun HomeScreen(onOpen: (Int) -> Unit, onSettings: () -> Unit, onDiscover: () -> 
                 EmptyState(Icons.Filled.Check, stringResource(R.string.home_all_done_title), stringResource(R.string.home_all_done_text))
             }
             else -> LazyColumn(Modifier.fillMaxSize().padding(pad), contentPadding = PaddingValues(bottom = 16.dp)) {
+                if (showBattery) {
+                    item(key = "battery") {
+                        BatteryBanner(
+                            onFix = { Battery.requestUnrestricted(ctx) },
+                            onDismiss = { prefs.batteryBannerDismissed = true; showBattery = false },
+                        )
+                    }
+                }
                 if (st.watching.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.home_continue)) }
                     items(st.watching, key = { "w${it.show.id}" }) { p ->
@@ -215,6 +236,27 @@ private fun UpNextCard(p: ShowProgress, onOpen: () -> Unit, onCheck: (() -> Unit
                 Spacer(Modifier.width(8.dp))
                 FilledIconButton(onClick = onCheck, modifier = Modifier.size(48.dp)) {
                     Icon(Icons.Filled.Check, stringResource(R.string.mark_watched))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BatteryBanner(onFix: () -> Unit, onDismiss: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+    ) {
+        Row(Modifier.padding(start = 14.dp, top = 12.dp, end = 4.dp, bottom = 8.dp), verticalAlignment = Alignment.Top) {
+            Icon(Icons.Filled.BatteryAlert, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.bat_banner_title), fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                Text(stringResource(R.string.bat_banner_text), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                Row {
+                    TextButton(onClick = onFix) { Text(stringResource(R.string.bat_fix)) }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.bat_not_now)) }
                 }
             }
         }
