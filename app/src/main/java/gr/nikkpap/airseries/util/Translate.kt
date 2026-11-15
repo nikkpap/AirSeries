@@ -48,9 +48,11 @@ object GreekTranslator {
         if (text.isBlank()) return text
         cache.get(text)?.let { return it }
         ensureModel()
-        val out = text.split('\n').joinToString("\n") { line ->
-            if (line.isBlank()) line else translator.translate(line).await()
+        val lines = mutableListOf<String>()
+        for (line in text.split('\n')) {
+            lines += if (line.isBlank()) line else translator.translate(line).await()
         }
+        val out = lines.joinToString("\n")
         cache.put(text, out)
         return out
     }
