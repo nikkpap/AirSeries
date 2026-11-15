@@ -61,6 +61,7 @@ import gr.nikkpap.airseries.data.Repository
 import gr.nikkpap.airseries.data.ShowProgress
 import gr.nikkpap.airseries.data.buildProgress
 import gr.nikkpap.airseries.data.local.EpisodeEntity
+import gr.nikkpap.airseries.data.local.ListStatus
 import gr.nikkpap.airseries.data.local.airTime
 import gr.nikkpap.airseries.ui.components.EmptyState
 import gr.nikkpap.airseries.ui.components.Poster
@@ -82,6 +83,7 @@ import kotlinx.coroutines.launch
 data class HomeState(
     val loaded: Boolean = false,
     val watching: List<ShowProgress> = emptyList(),
+    val plan: List<ShowProgress> = emptyList(),
     val upcoming: List<ShowProgress> = emptyList(),
     val totalFavorites: Int = 0,
 )
@@ -97,9 +99,11 @@ fun minuteTicker() = flow {
 class HomeViewModel(private val repo: Repository) : ViewModel() {
     val state: StateFlow<HomeState> = combine(repo.shows, repo.allEpisodes, minuteTicker()) { shows, eps, now ->
         val byShow = eps.groupBy { it.showId }
-        val all = shows.map { buildProgress(it, byShow[it.id].orEmpty(), now) }
+        val progress = shows.map { buildProgress(it, byShow[it.id].orEmpty(), now) }
+        val all = progress.filter { it.show.listStatus == ListStatus.WATCHING }
         HomeState(
             loaded = true,
+            plan = progress.filter { it.show.listStatus == ListStatus.PLAN }.sortedByDescending { it.show.addedAt },
             watching = all.filter { it.nextUnwatched != null }
                 .sortedWith(compareByDescending<ShowProgress> { it.lastWatchedAt }.thenBy { it.show.name }),
             upcoming = all.filter { it.nextUnwatched == null && it.nextAiring != null }
@@ -146,7 +150,7 @@ fun HomeScreen(onOpen: (Int) -> Unit, onSettings: () -> Unit, onDiscover: () -> 
                     onDiscover,
                 )
             }
-            st.watching.isEmpty() && st.upcoming.isEmpty() -> Box(Modifier.padding(pad)) {
+            st.watching.isEmpty() && st.upcoming.isEmpty() && st.plan.isEmpty() -> Box(Modifier.padding(pad)) {
                 EmptyState(Icons.Filled.Check, stringResource(R.string.home_all_done_title), stringResource(R.string.home_all_done_text))
             }
             else -> LazyColumn(Modifier.fillMaxSize().padding(pad), contentPadding = PaddingValues(bottom = 16.dp)) {
@@ -178,6 +182,12 @@ fun HomeScreen(onOpen: (Int) -> Unit, onSettings: () -> Unit, onDiscover: () -> 
                 if (st.upcoming.isNotEmpty()) {
                     item { SectionHeader(stringResource(R.string.home_upcoming)) }
                     items(st.upcoming, key = { "u${it.show.id}" }) { p ->
+                        UpNextCard(p, onOpen = { onOpen(p.show.id) }, onCheck = null)
+                    }
+                }
+                if (st.plan.isNotEmpty()) {
+                    item { SectionHeader(stringResource(R.string.list_plan)) }
+                    items(st.plan, key = { "p${it.show.id}" }) { p ->
                         UpNextCard(p, onOpen = { onOpen(p.show.id) }, onCheck = null)
                     }
                 }

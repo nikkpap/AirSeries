@@ -59,9 +59,9 @@ fun relativeAir(ctx: Context, ms: Long, now: Long = System.currentTimeMillis()):
 
 fun year(date: String?): String? = date?.takeIf { it.length >= 4 }?.take(4)
 
-fun shareShow(ctx: Context, show: ShowEntity) {
+fun shareText(ctx: Context, show: ShowEntity): String {
     val link = show.url ?: "https://www.tvmaze.com/shows/${show.id}"
-    val text = buildString {
+    return buildString {
         append("📺 ").append(show.name)
         year(show.premiered)?.let { append(" (").append(it).append(")") }
         append('\n')
@@ -76,10 +76,13 @@ fun shareShow(ctx: Context, show: ShowEntity) {
         append('\n').append(link)
         append("\n\n").append(ctx.getString(R.string.shared_via))
     }
+}
+
+fun shareShow(ctx: Context, show: ShowEntity) {
     val send = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_SUBJECT, show.name)
-        putExtra(Intent.EXTRA_TEXT, text)
+        putExtra(Intent.EXTRA_TEXT, shareText(ctx, show))
     }
     ctx.startActivity(Intent.createChooser(send, ctx.getString(R.string.share_with)))
 }

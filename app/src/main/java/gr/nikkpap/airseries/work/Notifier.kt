@@ -23,6 +23,7 @@ import gr.nikkpap.airseries.data.local.EpisodeEntity
 import gr.nikkpap.airseries.data.local.ShowEntity
 import gr.nikkpap.airseries.util.epCode
 import gr.nikkpap.airseries.util.formatDateTime
+import gr.nikkpap.airseries.util.formatTime
 
 object Notifier {
     const val CH_EPISODES = "episodes"
@@ -100,6 +101,28 @@ object Notifier {
             .setContentIntent(openShow(ctx, show.id, -ep.id))
             .build()
         NotificationManagerCompat.from(ctx).notify(-ep.id, n)
+    }
+
+    @SuppressLint("MissingPermission")
+    fun digest(ctx: Context, items: List<Triple<ShowEntity, EpisodeEntity, Long>>) {
+        if (!canNotify(ctx)) return
+        val title = ctx.resources.getQuantityString(R.plurals.digest_title, items.size, items.size)
+        val style = NotificationCompat.InboxStyle().setBigContentTitle(title)
+        items.take(7).forEach { (show, ep, t) ->
+            val time = if (ep.airstamp != null) formatTime(ctx, t) + " · " else ""
+            style.addLine("$time${show.name} — ${epCode(ep.season, ep.number)}")
+        }
+        if (items.size > 7) style.setSummaryText("+${items.size - 7}")
+        val i = Intent(ctx, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val n = NotificationCompat.Builder(ctx, CH_NEWS)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(items.joinToString(", ") { it.first.name })
+            .setStyle(style)
+            .setAutoCancel(true)
+            .setContentIntent(PendingIntent.getActivity(ctx, 3, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+            .build()
+        NotificationManagerCompat.from(ctx).notify(3, n)
     }
 
     @SuppressLint("MissingPermission")

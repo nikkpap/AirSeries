@@ -31,6 +31,15 @@ class Prefs(ctx: Context) {
     private val _lastSync = MutableStateFlow(sp.getLong(K_LAST_SYNC, 0L))
     val lastSync: StateFlow<Long> = _lastSync.asStateFlow()
 
+    private val _digest = MutableStateFlow(sp.getBoolean(K_DIGEST, true))
+    val digestEnabled: StateFlow<Boolean> = _digest.asStateFlow()
+
+    private val _digestHour = MutableStateFlow(sp.getInt(K_DIGEST_HOUR, 9))
+    val digestHour: StateFlow<Int> = _digestHour.asStateFlow()
+
+    fun setDigestEnabled(v: Boolean) { sp.edit().putBoolean(K_DIGEST, v).apply(); _digest.value = v }
+    fun setDigestHour(v: Int) { sp.edit().putInt(K_DIGEST_HOUR, v).apply(); _digestHour.value = v }
+
     fun setNotifyEnabled(v: Boolean) { sp.edit().putBoolean(K_NOTIFY, v).apply(); _notifyEnabled.value = v }
     fun setNotifyOffset(v: Int) { sp.edit().putInt(K_OFFSET, v).apply(); _notifyOffset.value = v }
     fun setNotifyAnnouncements(v: Boolean) { sp.edit().putBoolean(K_ANNOUNCE, v).apply(); _notifyAnnouncements.value = v }
@@ -58,6 +67,8 @@ class Prefs(ctx: Context) {
     companion object {
         private const val K_UPD = "last_notified_update"
         private const val K_BAT = "battery_banner_dismissed"
+        private const val K_DIGEST = "digest"
+        private const val K_DIGEST_HOUR = "digest_hour"
         private const val K_NOTIFY = "notify"
         private const val K_OFFSET = "notify_offset"
         private const val K_ANNOUNCE = "notify_announce"

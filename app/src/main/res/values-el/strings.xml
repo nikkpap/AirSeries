@@ -155,7 +155,7 @@
     <string name="about_version">Έκδοση %1$s</string>
     <string name="about_tagline">Παρακολούθησε τις σειρές σου, μάθε τη στιγμή που βγαίνει νέο επεισόδιο και ανακάλυψε τι να δεις μετά.</string>
     <string name="about_dev_label">Ανάπτυξη</string>
-    <string name="about_dev_name">Νικόλαος Κ. Παρίδης</string>
+    <string name="about_dev_name">Nikolaos K. Paridis (aka nikkpap)</string>
     <string name="about_dev_role">Πολιτικός Μηχανικός · Civil Site Manager</string>
     <string name="about_story">Η ALU DEV TEAM φτιάχνει πρακτικές εφαρμογές για την καθημερινότητα και τη δουλειά: εργαλεία εργοταξίου, plugins CAD, utilities και εφαρμογές σαν κι αυτή. Σχόλια και ιδέες είναι πάντα ευπρόσδεκτα!</string>
     <string name="about_contact">Επικοινωνία</string>
@@ -166,6 +166,18 @@
     <string name="about_share_app_desc">Στείλε την εφαρμογή σε φίλους</string>
     <string name="about_share_text">📺 AirSeries — μη χάνεις κανένα επεισόδιο από τις αγαπημένες σου σειρές! Δωρεάν: %1$s</string>
     <string name="about_credits">Δεδομένα σειρών: TVmaze.com (CC BY-SA 4.0) · Κατασκευή με Kotlin, Jetpack Compose, Room, WorkManager, Retrofit, Coil</string>
+    <string name="list_watching">Βλέπω</string>
+    <string name="list_plan">Θα δω</string>
+    <string name="list_paused">Σε παύση</string>
+    <string name="list_dropped">Παράτησα</string>
+    <string name="set_digest">Πρωινή σύνοψη</string>
+    <string name="set_digest_desc">Μία ειδοποίηση την ημέρα με όλα τα σημερινά επεισόδια</string>
+    <string name="widget_name">AirSeries — Τι βλέπω</string>
+    <string name="widget_desc">Τα επόμενα επεισόδια και τι βγαίνει αυτή την εβδομάδα</string>
+    <string name="widget_empty">Τίποτα για να δεις τώρα. Πάτα για να ανοίξεις το AirSeries.</string>
+    <string name="share_card_footer">AirSeries · github.com/nikkpap/AirSeries</string>
+    <string name="share_card_progress">Έχω δει %1$d/%2$d επεισόδια (%3$d%%)</string>
+    <string name="share_card_done">Την έχω δει ολόκληρη ✓</string>
     <string name="upd_title">Νέα έκδοση %1$s</string>
     <string name="upd_current">Εγκατεστημένη έκδοση: %1$s</string>
     <string name="upd_install">Ενημέρωση</string>
@@ -193,6 +205,10 @@
     <plurals name="days_ago">
         <item quantity="one">πριν %d μέρα</item>
         <item quantity="other">πριν %d μέρες</item>
+    </plurals>
+    <plurals name="digest_title">
+        <item quantity="one">Σήμερα βγαίνει %d επεισόδιο</item>
+        <item quantity="other">Σήμερα βγαίνουν %d επεισόδια</item>
     </plurals>
     <plurals name="left_to_watch">
         <item quantity="one">%d επεισόδιο για να δεις</item>

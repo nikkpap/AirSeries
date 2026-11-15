@@ -45,6 +45,7 @@ import androidx.lifecycle.viewModelScope
 import gr.nikkpap.airseries.R
 import gr.nikkpap.airseries.data.Repository
 import gr.nikkpap.airseries.data.local.EpisodeEntity
+import gr.nikkpap.airseries.data.local.ListStatus
 import gr.nikkpap.airseries.data.local.ShowEntity
 import gr.nikkpap.airseries.data.local.airTime
 import gr.nikkpap.airseries.ui.components.EmptyState
@@ -69,7 +70,7 @@ data class ScheduleState(val upcoming: List<ScheduleItem> = emptyList(), val rec
 
 class ScheduleViewModel(private val repo: Repository) : ViewModel() {
     val state = combine(repo.shows, repo.allEpisodes, minuteTicker()) { shows, eps, now ->
-        val byId = shows.associateBy { it.id }
+        val byId = shows.filter { it.listStatus != ListStatus.DROPPED }.associateBy { it.id }
         val items = eps.mapNotNull { e ->
             val s = byId[e.showId] ?: return@mapNotNull null
             val t = e.airTime() ?: return@mapNotNull null

@@ -56,6 +56,7 @@ import gr.nikkpap.airseries.R
 import gr.nikkpap.airseries.data.Repository
 import gr.nikkpap.airseries.data.ShowProgress
 import gr.nikkpap.airseries.data.buildProgress
+import gr.nikkpap.airseries.data.local.ListStatus
 import gr.nikkpap.airseries.ui.components.EmptyState
 import gr.nikkpap.airseries.ui.components.Poster
 import gr.nikkpap.airseries.ui.components.ProgressLine
@@ -76,9 +77,12 @@ class LibraryViewModel(repo: Repository) : ViewModel() {
 
 private enum class Filter(val label: Int, val test: (ShowProgress) -> Boolean) {
     All(R.string.f_all, { true }),
-    Watching(R.string.f_watching, { it.started && !it.upToDate }),
-    UpToDate(R.string.f_uptodate, { it.upToDate && !it.completed }),
+    Watching(R.string.f_watching, { it.show.listStatus == ListStatus.WATCHING && it.started && !it.upToDate }),
+    UpToDate(R.string.f_uptodate, { it.show.listStatus == ListStatus.WATCHING && it.upToDate && !it.completed }),
     Completed(R.string.f_completed, { it.completed }),
+    Plan(R.string.list_plan, { it.show.listStatus == ListStatus.PLAN }),
+    Paused(R.string.list_paused, { it.show.listStatus == ListStatus.PAUSED }),
+    Dropped(R.string.list_dropped, { it.show.listStatus == ListStatus.DROPPED }),
     NotStarted(R.string.f_notstarted, { !it.started }),
     Running(R.string.f_running, { it.show.status == "Running" }),
     Ended(R.string.f_ended, { it.show.status == "Ended" }),

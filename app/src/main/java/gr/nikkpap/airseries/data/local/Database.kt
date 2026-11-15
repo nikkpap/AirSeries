@@ -1,6 +1,7 @@
 package gr.nikkpap.airseries.data.local
 
 import android.content.Context
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -11,6 +12,8 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 import java.time.LocalDate
@@ -40,7 +43,16 @@ data class ShowEntity(
     val nextEpisodeId: Int?,
     val addedAt: Long,
     val lastSync: Long,
+    /** 0 = watching, 1 = plan to watch, 2 = paused, 3 = dropped */
+    @ColumnInfo(defaultValue = "0") val listStatus: Int = 0,
 )
+
+object ListStatus {
+    const val WATCHING = 0
+    const val PLAN = 1
+    const val PAUSED = 2
+    const val DROPPED = 3
+}
 
 @Entity(tableName = "episodes", indices = [Index("showId")])
 data class EpisodeEntity(
@@ -119,6 +131,9 @@ interface AppDao {
     @Query("DELETE FROM shows WHERE id = :id")
     suspend fun deleteShow(id: Int)
 
+    @Query("UPDATE shows SET listStatus = :status WHERE id = :id")
+    suspend fun setListStatus(id: Int, status: Int)
+
     // ---- episodes ----
     @Query("SELECT * FROM episodes ORDER BY showId, season, number")
     fun allEpisodesFlow(): Flow<List<EpisodeEntity>>
@@ -175,7 +190,7 @@ interface AppDao {
 
 @Database(
     entities = [ShowEntity::class, EpisodeEntity::class, RecCandidateEntity::class, DismissedEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -183,8 +198,16 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         @Volatile private var instance: AppDatabase? = null
+
+        /** 1.0.5: adds the personal list (watching / plan / paused / dropped) without losing data. */
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE shows ADD COLUMN listStatus INTEGER NOT NULL DEFAULT 0")
+            }
+        }
         fun get(ctx: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(ctx.applicationContext, AppDatabase::class.java, "airseries.db")
+                .addMigrations(MIGRATION_1_2)
                 .fallbackToDestructiveMigration()
                 .build()
                 .also { instance = it }

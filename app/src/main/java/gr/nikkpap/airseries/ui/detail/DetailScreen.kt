@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -44,6 +45,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,6 +59,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -79,6 +82,7 @@ import gr.nikkpap.airseries.R
 import gr.nikkpap.airseries.data.ShowProgress
 import gr.nikkpap.airseries.data.buildProgress
 import gr.nikkpap.airseries.data.local.EpisodeEntity
+import gr.nikkpap.airseries.data.local.ListStatus
 import gr.nikkpap.airseries.data.local.ShowEntity
 import gr.nikkpap.airseries.data.local.airTime
 import gr.nikkpap.airseries.data.local.genreList
@@ -87,6 +91,7 @@ import gr.nikkpap.airseries.ui.components.EmptyState
 import gr.nikkpap.airseries.ui.components.Poster
 import gr.nikkpap.airseries.ui.components.ProgressLine
 import gr.nikkpap.airseries.ui.components.appViewModel
+import gr.nikkpap.airseries.util.ShareCard
 import gr.nikkpap.airseries.util.epCode
 import gr.nikkpap.airseries.util.formatDate
 import gr.nikkpap.airseries.util.formatDateTime
@@ -171,6 +176,8 @@ class DetailViewModel(c: AppContainer, private val id: Int) : ViewModel() {
         }
     }
 
+    fun setList(status: Int) = viewModelScope.launch { runCatching { repo.setListStatus(id, status) } }
+
     private suspend fun ensureFavorite() {
         if (!state.value.isFavorite) repo.addFavorite(id)
     }
@@ -196,6 +203,7 @@ fun DetailScreen(showId: Int, onBack: () -> Unit) {
     val busy by vm.busy.collectAsStateWithLifecycle()
     val spoilers by vm.spoilers.collectAsStateWithLifecycle()
     val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     var confirmRemove by remember { mutableStateOf(false) }
     var markUpToEp by remember { mutableStateOf<EpisodeEntity?>(null) }
     var summaryOpen by rememberSaveable { mutableStateOf(false) }
@@ -276,13 +284,41 @@ fun DetailScreen(showId: Int, onBack: () -> Unit) {
                             Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.add_favorite))
                         }
                     }
-                    OutlinedButton(onClick = { shareShow(ctx, show) }) {
+                    OutlinedButton(onClick = {
+                        val prog = st.progress.takeIf { st.isFavorite }
+                        scope.launch { runCatching { ShareCard.share(ctx, show, prog) }.onFailure { shareShow(ctx, show) } }
+                    }) {
                         Icon(Icons.Filled.Share, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.share))
                     }
                     IconButton(onClick = {
                         val url = show.imdb?.let { "https://www.imdb.com/title/$it/" } ?: show.url ?: "https://www.tvmaze.com/shows/${show.id}"
                         openUrl(ctx, url)
                     }) { Icon(Icons.AutoMirrored.Filled.OpenInNew, "IMDb / TVmaze") }
+                }
+            }
+        }
+
+        // ---------- personal list ----------
+        if (st.isFavorite) {
+            item {
+                Row(
+                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    listOf(
+                        ListStatus.WATCHING to R.string.list_watching,
+                        ListStatus.PLAN to R.string.list_plan,
+                        ListStatus.PAUSED to R.string.list_paused,
+                        ListStatus.DROPPED to R.string.list_dropped,
+                    ).forEach { (value, label) ->
+                        val selected = show.listStatus == value
+                        FilterChip(
+                            selected = selected,
+                            onClick = { vm.setList(value) },
+                            label = { Text(stringResource(label)) },
+                            leadingIcon = if (selected) { { Icon(Icons.Filled.Check, null, Modifier.size(16.dp)) } } else null,
+                        )
+                    }
                 }
             }
         }

@@ -42,6 +42,18 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <receiver
+            android:name=".widget.AirSeriesWidgetReceiver"
+            android:exported="true"
+            android:label="@string/widget_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/airseries_widget_info" />
+        </receiver>
+
         <!-- Stores the in-app language choice on Android 12 and older -->
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"

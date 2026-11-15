@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Upload
 import androidx.compose.material.icons.filled.VisibilityOff
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -87,6 +88,8 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit) {
     val theme by p.themeMode.collectAsStateWithLifecycle()
     val dynamic by p.dynamicColor.collectAsStateWithLifecycle()
     val lastSync by p.lastSync.collectAsStateWithLifecycle()
+    val digest by p.digestEnabled.collectAsStateWithLifecycle()
+    val digestHour by p.digestHour.collectAsStateWithLifecycle()
     var working by remember { mutableStateOf(false) }
     var batteryOk by remember { mutableStateOf(Battery.isUnrestricted(ctx)) }
     LifecycleResumeEffect(Unit) {
@@ -129,6 +132,7 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit) {
             SwitchRow(Icons.Filled.Notifications, R.string.set_notify, R.string.set_notify_desc, notify) {
                 p.setNotifyEnabled(it)
                 scope.launch { Scheduler.rescheduleAll(ctx) }
+                Scheduler.scheduleDigest(ctx)
             }
             Text(stringResource(R.string.set_when), Modifier.padding(start = 16.dp, top = 4.dp), style = MaterialTheme.typography.labelLarge)
             ChipRow(
@@ -137,6 +141,20 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit) {
             ) { v ->
                 p.setNotifyOffset(v)
                 scope.launch { Scheduler.rescheduleAll(ctx) }
+            }
+            SwitchRow(Icons.Filled.WbSunny, R.string.set_digest, R.string.set_digest_desc, digest) {
+                p.setDigestEnabled(it)
+                Scheduler.scheduleDigest(ctx)
+            }
+            if (digest) {
+                ChipRow(
+                    options = listOf(7, 8, 9, 10, 12, 18).map { it to it },
+                    selected = digestHour,
+                    labelOf = { "%02d:00".format(it) },
+                ) { h ->
+                    p.setDigestHour(h)
+                    Scheduler.scheduleDigest(ctx)
+                }
             }
             SwitchRow(Icons.Filled.NotificationsActive, R.string.set_announce, R.string.set_announce_desc, announce) { p.setNotifyAnnouncements(it) }
             ListItem(
@@ -272,13 +290,22 @@ private fun SwitchRow(icon: ImageVector?, title: Int, desc: Int, checked: Boolea
 }
 
 @Composable
-private fun ChipRow(options: List<Pair<Int, Int>>, selected: Int, onSelect: (Int) -> Unit) {
+private fun ChipRow(
+    options: List<Pair<Int, Int>>,
+    selected: Int,
+    labelOf: ((Int) -> String)? = null,
+    onSelect: (Int) -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         options.forEach { (value, label) ->
-            FilterChip(selected = value == selected, onClick = { onSelect(value) }, label = { Text(stringResource(label)) })
+            FilterChip(
+                selected = value == selected,
+                onClick = { onSelect(value) },
+                label = { Text(labelOf?.invoke(label) ?: stringResource(label)) },
+            )
         }
     }
 }

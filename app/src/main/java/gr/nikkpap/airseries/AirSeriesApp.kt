@@ -2,6 +2,7 @@ package gr.nikkpap.airseries
 
 import android.app.Application
 import android.content.Context
+import androidx.work.ExistingWorkPolicy
 import gr.nikkpap.airseries.data.Prefs
 import gr.nikkpap.airseries.data.Recommender
 import gr.nikkpap.airseries.data.Repository
@@ -20,6 +21,7 @@ class AirSeriesApp : Application() {
         Notifier.createChannels(this)
         Scheduler.schedulePeriodicSync(this)
         Scheduler.syncNow(this, force = false)
+        Scheduler.scheduleDigest(this, ExistingWorkPolicy.KEEP)
     }
 }
 

@@ -4,11 +4,13 @@ import android.content.Context
 import androidx.room.withTransaction
 import gr.nikkpap.airseries.data.local.AppDatabase
 import gr.nikkpap.airseries.data.local.EpisodeEntity
+import gr.nikkpap.airseries.data.local.ListStatus
 import gr.nikkpap.airseries.data.local.ShowEntity
 import gr.nikkpap.airseries.data.local.isAired
 import gr.nikkpap.airseries.data.remote.EpisodeDto
 import gr.nikkpap.airseries.data.remote.ShowDto
 import gr.nikkpap.airseries.data.remote.TvMazeApi
+import gr.nikkpap.airseries.widget.WidgetUpdater
 import gr.nikkpap.airseries.work.Scheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -80,6 +82,7 @@ class Repository(
     suspend fun addFavorite(id: Int) {
         refreshShow(id, isNewFavorite = true)
         Scheduler.scheduleShow(ctx, id)
+        WidgetUpdater.refresh(ctx)
     }
 
     suspend fun removeFavorite(id: Int) {
@@ -88,10 +91,26 @@ class Repository(
             dao.deleteShow(id)
         }
         Scheduler.cancelShow(ctx, id)
+        WidgetUpdater.refresh(ctx)
     }
 
-    suspend fun setWatched(epId: Int, watched: Boolean) =
+    suspend fun setWatched(epId: Int, watched: Boolean) {
         dao.setWatched(epId, watched, if (watched) System.currentTimeMillis() else null)
+        if (watched) dao.episode(epId)?.let { autoStartWatching(it.showId) }
+        WidgetUpdater.refresh(ctx)
+    }
+
+    /** Watching an episode of a "plan to watch" show moves it to "watching". */
+    private suspend fun autoStartWatching(showId: Int) {
+        val s = dao.show(showId) ?: return
+        if (s.listStatus == ListStatus.PLAN) dao.setListStatus(showId, ListStatus.WATCHING)
+    }
+
+    suspend fun setListStatus(showId: Int, status: Int) {
+        dao.setListStatus(showId, status)
+        if (status == ListStatus.DROPPED) Scheduler.cancelShow(ctx, showId) else Scheduler.scheduleShow(ctx, showId)
+        WidgetUpdater.refresh(ctx)
+    }
 
     suspend fun setSeasonWatched(showId: Int, season: Int, watched: Boolean) {
         val now = System.currentTimeMillis()
@@ -99,6 +118,8 @@ class Repository(
             .filter { it.season == season && (!watched || it.isAired(now)) }
             .map { it.id }
         ids.chunked(500).forEach { dao.setWatchedMany(it, watched, if (watched) now else null) }
+        if (watched) autoStartWatching(showId)
+        WidgetUpdater.refresh(ctx)
     }
 
     /** Marks this episode and every earlier aired episode as watched. */
@@ -108,6 +129,8 @@ class Repository(
             .filter { it.isAired(now) && !it.watched && (it.season < ep.season || (it.season == ep.season && (it.number ?: 0) <= (ep.number ?: 0))) }
             .map { it.id }
         ids.chunked(500).forEach { dao.setWatchedMany(it, true, now) }
+        autoStartWatching(ep.showId)
+        WidgetUpdater.refresh(ctx)
     }
 
     /** Refreshes every favorite (slowly, to respect the API rate limit). */
@@ -118,6 +141,7 @@ class Repository(
             delay(400)
         }
         prefs.setLastSync(System.currentTimeMillis())
+        WidgetUpdater.refresh(ctx)
         return out
     }
 
@@ -177,6 +201,7 @@ fun ShowDto.toEntity(prev: ShowEntity?, now: Long) = ShowEntity(
     nextEpisodeId = embedded?.nextepisode?.id,
     addedAt = prev?.addedAt ?: now,
     lastSync = now,
+    listStatus = prev?.listStatus ?: ListStatus.WATCHING,
 )
 
 fun EpisodeDto.toEntity(showId: Int, prev: EpisodeEntity?) = EpisodeEntity(

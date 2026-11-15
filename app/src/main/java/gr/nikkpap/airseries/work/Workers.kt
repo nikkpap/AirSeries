@@ -5,8 +5,13 @@ import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
+import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkerParameters
 import gr.nikkpap.airseries.container
+import gr.nikkpap.airseries.data.local.ListStatus
+import gr.nikkpap.airseries.data.local.airTime
+import java.time.LocalDate
+import java.time.ZoneId
 import gr.nikkpap.airseries.update.Updater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +24,8 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
         return try {
             val announced = c.repo.syncAll()
             if (c.prefs.notifyEnabled.value && c.prefs.notifyAnnouncements.value) {
-                announced.forEach { Notifier.announcement(applicationContext, it.show, it.episode) }
+                announced.filter { it.show.listStatus != ListStatus.DROPPED }
+                    .forEach { Notifier.announcement(applicationContext, it.show, it.episode) }
             }
             Scheduler.rescheduleAll(applicationContext)
             if (System.currentTimeMillis() - c.prefs.lastRecsRefresh > 7L * 24 * 3_600_000) {
@@ -45,7 +51,7 @@ class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
         val dao = c.db.dao()
         val ep = dao.episode(inputData.getInt(KEY_EP, -1)) ?: return Result.success()
         val show = dao.show(ep.showId) ?: return Result.success()
-        if (ep.notified || !c.prefs.notifyEnabled.value) return Result.success()
+        if (ep.notified || !c.prefs.notifyEnabled.value || !Scheduler.wantsReminders(show.listStatus)) return Result.success()
         val air = ep.airstamp ?: return Result.success()
         val fireAt = air - c.prefs.notifyOffset.value * 60_000L
         // Air time was moved later: the next sync will plan a new reminder.
@@ -60,6 +66,27 @@ class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
     }
 
     companion object { const val KEY_EP = "epId" }
+}
+
+/** Daily morning summary of today's episodes; re-plans itself for tomorrow. */
+class DigestWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+    override suspend fun doWork(): Result {
+        val c = applicationContext.container
+        if (c.prefs.digestEnabled.value && c.prefs.notifyEnabled.value) {
+            val dao = c.db.dao()
+            val shows = dao.shows().filter { Scheduler.wantsReminders(it.listStatus) }.associateBy { it.id }
+            val zone = ZoneId.systemDefault()
+            val start = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
+            val end = start + 24 * 3_600_000L
+            val today = dao.allEpisodes()
+                .filter { it.showId in shows }
+                .mapNotNull { e -> e.airTime()?.takeIf { it in start until end }?.let { t -> Triple(shows.getValue(e.showId), e, t) } }
+                .sortedBy { it.third }
+            if (today.isNotEmpty()) Notifier.digest(applicationContext, today)
+        }
+        Scheduler.scheduleDigest(applicationContext, ExistingWorkPolicy.APPEND_OR_REPLACE)
+        return Result.success()
+    }
 }
 
 /** "✓ Watched" button inside the notification. */

@@ -156,7 +156,7 @@
     <string name="about_version">Version %1$s</string>
     <string name="about_tagline">Track your TV shows, get notified the moment a new episode airs and discover what to watch next.</string>
     <string name="about_dev_label">Developed by</string>
-    <string name="about_dev_name">Nikolaos K. Paridis</string>
+    <string name="about_dev_name">Nikolaos K. Paridis (aka nikkpap)</string>
     <string name="about_dev_role">Civil Engineer · Site Manager</string>
     <string name="about_story">ALU DEV TEAM builds practical apps for everyday life and work: construction field tools, CAD plugins, utilities, and apps like this one. Feedback and ideas are always welcome!</string>
     <string name="about_contact">Contact</string>
@@ -167,6 +167,18 @@
     <string name="about_share_app_desc">Send the app to friends</string>
     <string name="about_share_text">📺 AirSeries — never miss an episode of your favorite shows! Free download: %1$s</string>
     <string name="about_credits">TV data: TVmaze.com (CC BY-SA 4.0) · Built with Kotlin, Jetpack Compose, Room, WorkManager, Retrofit, Coil</string>
+    <string name="list_watching">Watching</string>
+    <string name="list_plan">Plan to watch</string>
+    <string name="list_paused">Paused</string>
+    <string name="list_dropped">Dropped</string>
+    <string name="set_digest">Morning summary</string>
+    <string name="set_digest_desc">One notification a day with all of today\'s episodes</string>
+    <string name="widget_name">AirSeries — Up next</string>
+    <string name="widget_desc">Next episodes to watch and what airs this week</string>
+    <string name="widget_empty">Nothing to watch right now. Tap to open AirSeries.</string>
+    <string name="share_card_footer">AirSeries · github.com/nikkpap/AirSeries</string>
+    <string name="share_card_progress">I\'ve watched %1$d/%2$d episodes (%3$d%%)</string>
+    <string name="share_card_done">Watched it all ✓</string>
     <string name="upd_title">New version %1$s</string>
     <string name="upd_current">Installed version: %1$s</string>
     <string name="upd_install">Update</string>
@@ -194,6 +206,10 @@
     <plurals name="days_ago">
         <item quantity="one">%d day ago</item>
         <item quantity="other">%d days ago</item>
+    </plurals>
+    <plurals name="digest_title">
+        <item quantity="one">Today: %d new episode</item>
+        <item quantity="other">Today: %d new episodes</item>
     </plurals>
     <plurals name="left_to_watch">
         <item quantity="one">%d episode to watch</item>

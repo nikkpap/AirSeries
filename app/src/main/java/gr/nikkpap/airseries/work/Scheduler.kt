@@ -11,6 +11,10 @@ import androidx.work.WorkManager
 import androidx.work.workDataOf
 import gr.nikkpap.airseries.container
 import gr.nikkpap.airseries.data.local.EpisodeEntity
+import gr.nikkpap.airseries.data.local.ListStatus
+import java.time.Duration
+import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
 
 object Scheduler {
@@ -37,8 +41,14 @@ object Scheduler {
         )
     }
 
+    /** Paused and dropped shows get no episode reminders. */
+    fun wantsReminders(listStatus: Int) = listStatus == ListStatus.WATCHING || listStatus == ListStatus.PLAN
+
     suspend fun scheduleShow(ctx: Context, showId: Int) {
-        scheduleEpisodes(ctx, ctx.container.db.dao().episodes(showId))
+        val dao = ctx.container.db.dao()
+        val show = dao.show(showId) ?: return
+        if (!wantsReminders(show.listStatus)) return
+        scheduleEpisodes(ctx, dao.episodes(showId))
     }
 
     /** One reminder per upcoming episode (next 14 days), fired [offset] minutes before air. */
@@ -63,12 +73,33 @@ object Scheduler {
         }
     }
 
+    /** Morning digest: one notification a day at the chosen hour with today's episodes. */
+    fun scheduleDigest(ctx: Context, policy: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE) {
+        val prefs = ctx.container.prefs
+        val wm = WorkManager.getInstance(ctx)
+        if (!prefs.digestEnabled.value || !prefs.notifyEnabled.value) {
+            wm.cancelUniqueWork("digest")
+            return
+        }
+        val zone = ZoneId.systemDefault()
+        val now = ZonedDateTime.now(zone)
+        var next = now.toLocalDate().atTime(prefs.digestHour.value, 0).atZone(zone)
+        if (!next.isAfter(now.plusMinutes(1))) next = next.plusDays(1)
+        val delay = Duration.between(now, next).toMillis()
+        val req = OneTimeWorkRequestBuilder<DigestWorker>()
+            .setInitialDelay(delay, TimeUnit.MILLISECONDS)
+            .build()
+        wm.enqueueUniqueWork("digest", policy, req)
+    }
+
     fun cancelShow(ctx: Context, showId: Int) {
         WorkManager.getInstance(ctx).cancelAllWorkByTag("show_$showId")
     }
 
     suspend fun rescheduleAll(ctx: Context) {
         WorkManager.getInstance(ctx).cancelAllWorkByTag(TAG_REMINDER)
-        scheduleEpisodes(ctx, ctx.container.db.dao().allEpisodes())
+        val dao = ctx.container.db.dao()
+        val active = dao.shows().filter { wantsReminders(it.listStatus) }.mapTo(HashSet()) { it.id }
+        scheduleEpisodes(ctx, dao.allEpisodes().filter { it.showId in active })
     }
 }

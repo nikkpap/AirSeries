@@ -9,3 +9,4 @@
 -dontwarn org.bouncycastle.**
 -dontwarn org.openjsse.**
 -keep class gr.nikkpap.airseries.update.Gh* { *; }
+-keep class gr.nikkpap.airseries.widget.** { *; }
