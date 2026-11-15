@@ -38,6 +38,14 @@ interface TvMazeApi {
     @GET("people/{id}/castcredits?embed=show")
     suspend fun castCredits(@Path("id") id: Int): List<CastCreditDto>
 
+    /** Find a show by IMDb or TheTVDB id (TVmaze answers with a redirect, OkHttp follows it). */
+    @GET("lookup/shows")
+    suspend fun lookup(@Query("imdb") imdb: String?, @Query("thetvdb") tvdb: Int?): Response<ShowDto>
+
+    /** Best single match for a name (404 if nothing). */
+    @GET("singlesearch/shows")
+    suspend fun singleSearch(@Query("q") query: String): Response<ShowDto>
+
     @GET("shows")
     suspend fun showsPage(@Query("page") page: Int): Response<List<ShowDto>>
 

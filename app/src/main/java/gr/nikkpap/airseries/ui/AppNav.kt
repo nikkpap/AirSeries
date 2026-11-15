@@ -36,6 +36,8 @@ import gr.nikkpap.airseries.ui.home.HomeScreen
 import gr.nikkpap.airseries.ui.library.LibraryScreen
 import gr.nikkpap.airseries.ui.schedule.ScheduleScreen
 import gr.nikkpap.airseries.ui.settings.AboutScreen
+import gr.nikkpap.airseries.ui.settings.ImportScreen
+import gr.nikkpap.airseries.ui.stats.StatsScreen
 import gr.nikkpap.airseries.ui.settings.SettingsScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -91,10 +93,15 @@ fun AppNav(pendingShow: MutableStateFlow<Int?>) {
             composable(Tab.Schedule.route) { ScheduleScreen(onOpen = openShow) }
             composable(Tab.Discover.route) { DiscoverScreen(onOpen = openShow) }
             composable(Tab.Library.route) {
-                LibraryScreen(onOpen = openShow, onSettings = openSettings, onDiscover = { nav.goTab(Tab.Discover.route) })
+                LibraryScreen(
+                    onOpen = openShow, onSettings = openSettings,
+                    onDiscover = { nav.goTab(Tab.Discover.route) }, onStats = { nav.navigate("stats") },
+                )
             }
-            composable("settings") { SettingsScreen(onBack = { nav.popBackStack() }, onAbout = { nav.navigate("about") }) }
+            composable("settings") { SettingsScreen(onBack = { nav.popBackStack() }, onAbout = { nav.navigate("about") }, onImport = { nav.navigate("import") }) }
             composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }
+            composable("stats") { StatsScreen(onBack = { nav.popBackStack() }, onOpen = openShow) }
+            composable("import") { ImportScreen(onBack = { nav.popBackStack() }) }
             composable("show/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { e ->
                 DetailScreen(showId = e.arguments?.getInt("id") ?: 0, onBack = { nav.popBackStack() }, onOpen = openShow)
             }

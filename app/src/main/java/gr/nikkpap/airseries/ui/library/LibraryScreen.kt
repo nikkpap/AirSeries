@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -90,7 +91,7 @@ private enum class Filter(val label: Int, val test: (ShowProgress) -> Boolean) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LibraryScreen(onOpen: (Int) -> Unit, onSettings: () -> Unit, onDiscover: () -> Unit) {
+fun LibraryScreen(onOpen: (Int) -> Unit, onSettings: () -> Unit, onDiscover: () -> Unit, onStats: () -> Unit) {
     val vm = appViewModel { LibraryViewModel(it.repo) }
     val items by vm.items.collectAsStateWithLifecycle()
     var filter by rememberSaveable { mutableIntStateOf(0) }
@@ -103,6 +104,7 @@ fun LibraryScreen(onOpen: (Int) -> Unit, onSettings: () -> Unit, onDiscover: () 
             TopAppBar(
                 title = { Text(stringResource(R.string.library_title), fontWeight = FontWeight.Bold) },
                 actions = {
+                    IconButton(onClick = onStats) { Icon(Icons.Filled.Insights, stringResource(R.string.stats_title)) }
                     Box {
                         IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Filled.Sort, stringResource(R.string.sort)) }
                         DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
@@ -149,8 +151,9 @@ fun LibraryScreen(onOpen: (Int) -> Unit, onSettings: () -> Unit, onDiscover: () 
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Column {
                     Text(
-                        ctx.getString(R.string.stats_line, all.size, watchedEps, hours),
-                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ctx.getString(R.string.stats_line, all.size, watchedEps, hours) + "  ›",
+                        style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable(onClick = onStats),
                     )
                     Row(Modifier.horizontalScroll(rememberScrollState()).padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Filter.entries.forEachIndexed { i, fl ->

@@ -154,6 +154,14 @@ class Repository(
         WidgetUpdater.refresh(ctx)
     }
 
+    /** Marks episodes given as (season, number) pairs as watched — used by imports. */
+    suspend fun markWatchedPairs(showId: Int, pairs: Set<Pair<Int, Int>>) {
+        if (pairs.isEmpty()) return
+        val now = System.currentTimeMillis()
+        val ids = dao.episodes(showId).filter { e -> e.number != null && (e.season to e.number) in pairs }.map { it.id }
+        ids.chunked(500).forEach { dao.setWatchedMany(it, true, now) }
+    }
+
     /** Refreshes every favorite (slowly, to respect the API rate limit). */
     suspend fun syncAll(): List<Announcement> {
         val out = mutableListOf<Announcement>()

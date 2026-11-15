@@ -24,6 +24,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.BatteryAlert
 import androidx.compose.material.icons.filled.BatteryFull
+import androidx.compose.material.icons.filled.Backup
+import androidx.compose.material.icons.filled.CloudSync
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Notifications
@@ -76,7 +78,7 @@ import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onImport: () -> Unit) {
     val ctx = LocalContext.current
     val c = ctx.container
     val p = c.prefs
@@ -240,6 +242,17 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit) {
                 headlineContent = { Text(stringResource(if (working) R.string.restoring else R.string.set_restore)) },
                 supportingContent = { Text(stringResource(R.string.set_restore_desc)) },
                 modifier = Modifier.clickable(enabled = !working) { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
+            )
+            ListItem(
+                leadingContent = { Icon(Icons.Filled.CloudSync, null) },
+                headlineContent = { Text(stringResource(R.string.imp_title)) },
+                supportingContent = { Text(stringResource(R.string.imp_desc)) },
+                modifier = Modifier.clickable(onClick = onImport),
+            )
+            ListItem(
+                leadingContent = { Icon(Icons.Filled.Backup, null) },
+                headlineContent = { Text(stringResource(R.string.auto_backup)) },
+                supportingContent = { Text(stringResource(R.string.auto_backup_desc)) },
             )
             ListItem(
                 headlineContent = { Text(stringResource(R.string.set_reset_dismissed)) },

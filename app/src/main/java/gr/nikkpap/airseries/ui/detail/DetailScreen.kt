@@ -338,6 +338,11 @@ fun DetailScreen(showId: Int, onBack: () -> Unit, onOpen: (Int) -> Unit) {
             }
         }
 
+        // ---------- where to watch ----------
+        item(key = "where") {
+            WhereToWatchRow(show.name, show.network) { url -> openUrl(ctx, url) }
+        }
+
         // ---------- personal list ----------
         if (st.isFavorite) {
             item {

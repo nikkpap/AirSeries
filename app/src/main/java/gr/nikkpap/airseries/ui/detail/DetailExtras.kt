@@ -2,6 +2,8 @@ package gr.nikkpap.airseries.ui.detail
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +24,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.outlined.StarBorder
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -232,6 +236,40 @@ fun PersonSheet(person: PersonDto, shows: List<ShowDto>?, currentShowId: Int, on
                 }
             }
             Spacer(Modifier.height(16.dp))
+        }
+    }
+}
+
+/** Streaming services we can deep-link to by search (others go to JustWatch Greece). */
+private val streamingSearch = mapOf(
+    "netflix" to "https://www.netflix.com/search?q=",
+    "prime video" to "https://www.primevideo.com/search?phrase=",
+    "amazon prime video" to "https://www.primevideo.com/search?phrase=",
+    "apple tv+" to "https://tv.apple.com/search?term=",
+    "apple tv" to "https://tv.apple.com/search?term=",
+)
+
+/** "Where to watch": JustWatch Greece + the original platform. */
+@Composable
+fun WhereToWatchRow(name: String, network: String?, open: (String) -> Unit) {
+    val q = java.net.URLEncoder.encode(name, "UTF-8")
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(stringResource(R.string.where_to_watch), style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
+        AssistChip(
+            onClick = { open("https://www.google.com/search?q=" + java.net.URLEncoder.encode("site:justwatch.com/gr $name", "UTF-8")) },
+            label = { Text("JustWatch 🇬🇷") },
+            leadingIcon = { Icon(Icons.Filled.Tv, null, Modifier.size(16.dp)) },
+        )
+        if (!network.isNullOrBlank()) {
+            val direct = streamingSearch[network.lowercase()]
+            AssistChip(
+                onClick = { open(direct?.let { it + q } ?: ("https://www.google.com/search?q=" + java.net.URLEncoder.encode("$name $network", "UTF-8"))) },
+                label = { Text(network) },
+            )
         }
     }
 }
