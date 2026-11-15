@@ -2,6 +2,7 @@ package gr.nikkpap.airseries.data
 
 import gr.nikkpap.airseries.data.local.AppDatabase
 import gr.nikkpap.airseries.data.local.EpisodeEntity
+import gr.nikkpap.airseries.data.local.ListStatus
 import gr.nikkpap.airseries.data.local.RecCandidateEntity
 import gr.nikkpap.airseries.data.local.ShowEntity
 import gr.nikkpap.airseries.data.local.genreList
@@ -173,11 +174,17 @@ class Recommender(
     }
 
     companion object {
-        /** 1.0 for an untouched favorite, up to 3.0 for a fully watched one. */
+        /**
+         * How much a favorite shapes your taste profile:
+         * base 1.0 + up to 2.0 for watch progress, scaled by your star rating
+         * (1★ = ×0.3 … 5★ = ×1.7), and dropped shows count very little.
+         */
         fun favWeight(f: ShowEntity, eps: List<EpisodeEntity>?): Double {
             val reg = eps.orEmpty().filter { it.number != null }
-            if (reg.isEmpty()) return 1.0
-            return 1.0 + 2.0 * reg.count { it.watched }.toDouble() / reg.size
+            var w = if (reg.isEmpty()) 1.0 else 1.0 + 2.0 * reg.count { it.watched }.toDouble() / reg.size
+            if (f.myRating > 0) w *= 0.3 + (f.myRating - 1) * 0.35
+            if (f.listStatus == ListStatus.DROPPED) w *= 0.25
+            return w
         }
     }
 }

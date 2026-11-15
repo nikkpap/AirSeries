@@ -7,6 +7,7 @@ import gr.nikkpap.airseries.data.local.EpisodeEntity
 import gr.nikkpap.airseries.data.local.ListStatus
 import gr.nikkpap.airseries.data.local.ShowEntity
 import gr.nikkpap.airseries.data.local.isAired
+import gr.nikkpap.airseries.data.remote.CastDto
 import gr.nikkpap.airseries.data.remote.EpisodeDto
 import gr.nikkpap.airseries.data.remote.ShowDto
 import gr.nikkpap.airseries.data.remote.TvMazeApi
@@ -20,7 +21,14 @@ import kotlinx.serialization.Serializable
 import java.time.OffsetDateTime
 
 @Serializable
-data class BackupShow(val id: Int, val name: String = "", val watched: List<Int> = emptyList())
+data class BackupShow(
+    val id: Int,
+    val name: String = "",
+    val watched: List<Int> = emptyList(),
+    val listStatus: Int = 0,
+    val myRating: Int = 0,
+    val note: String? = null,
+)
 
 @Serializable
 data class BackupFile(val app: String = "AirSeries", val version: Int = 1, val created: Long = 0, val shows: List<BackupShow> = emptyList())
@@ -44,6 +52,16 @@ class Repository(
 
     suspend fun search(q: String): List<ShowDto> = withContext(Dispatchers.IO) {
         api.search(q).map { it.show }
+    }
+
+    suspend fun cast(id: Int): List<CastDto> = withContext(Dispatchers.IO) {
+        api.cast(id).distinctBy { it.person.id }.take(24)
+    }
+
+    /** Other shows an actor appears in, newest first. */
+    suspend fun personShows(personId: Int): List<ShowDto> = withContext(Dispatchers.IO) {
+        api.castCredits(personId).mapNotNull { it.embedded?.show }.distinctBy { it.id }
+            .sortedByDescending { it.premiered.orEmpty() }
     }
 
     /** Loads a show that is NOT in favorites, for preview only (nothing saved). */
@@ -106,6 +124,9 @@ class Repository(
         if (s.listStatus == ListStatus.PLAN) dao.setListStatus(showId, ListStatus.WATCHING)
     }
 
+    suspend fun setMyRating(showId: Int, rating: Int) = dao.setMyRating(showId, rating.coerceIn(0, 5))
+    suspend fun setNote(showId: Int, note: String?) = dao.setNote(showId, note?.trim()?.takeIf { it.isNotEmpty() })
+
     suspend fun setListStatus(showId: Int, status: Int) {
         dao.setListStatus(showId, status)
         if (status == ListStatus.DROPPED) Scheduler.cancelShow(ctx, showId) else Scheduler.scheduleShow(ctx, showId)
@@ -151,7 +172,7 @@ class Repository(
         val file = BackupFile(
             created = System.currentTimeMillis(),
             shows = dao.shows().map { s ->
-                BackupShow(s.id, s.name, eps[s.id].orEmpty().filter { it.watched }.map { it.id })
+                BackupShow(s.id, s.name, eps[s.id].orEmpty().filter { it.watched }.map { it.id }, s.listStatus, s.myRating, s.note)
             },
         )
         TvMazeApi.json.encodeToString(BackupFile.serializer(), file)
@@ -166,6 +187,9 @@ class Repository(
             if (ok) {
                 val now = System.currentTimeMillis()
                 b.watched.chunked(500).forEach { dao.setWatchedMany(it, true, now) }
+                dao.setListStatus(b.id, b.listStatus)
+                dao.setMyRating(b.id, b.myRating)
+                dao.setNote(b.id, b.note)
                 count++
             }
             delay(400)
@@ -202,6 +226,8 @@ fun ShowDto.toEntity(prev: ShowEntity?, now: Long) = ShowEntity(
     addedAt = prev?.addedAt ?: now,
     lastSync = now,
     listStatus = prev?.listStatus ?: ListStatus.WATCHING,
+    myRating = prev?.myRating ?: 0,
+    note = prev?.note,
 )
 
 fun EpisodeDto.toEntity(showId: Int, prev: EpisodeEntity?) = EpisodeEntity(

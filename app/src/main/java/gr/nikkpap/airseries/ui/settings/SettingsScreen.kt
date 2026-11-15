@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.NotificationsActive
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.SystemUpdate
 import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.Button
@@ -89,6 +90,7 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit) {
     val dynamic by p.dynamicColor.collectAsStateWithLifecycle()
     val lastSync by p.lastSync.collectAsStateWithLifecycle()
     val digest by p.digestEnabled.collectAsStateWithLifecycle()
+    val autoTr by p.autoTranslate.collectAsStateWithLifecycle()
     val digestHour by p.digestHour.collectAsStateWithLifecycle()
     var working by remember { mutableStateOf(false) }
     var batteryOk by remember { mutableStateOf(Battery.isUnrestricted(ctx)) }
@@ -213,6 +215,7 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit) {
                     if (tags.isEmpty()) LocaleListCompat.getEmptyLocaleList() else LocaleListCompat.forLanguageTags(tags)
                 )
             }
+            SwitchRow(Icons.Filled.Translate, R.string.set_translate, R.string.set_translate_desc, autoTr) { p.setAutoTranslate(it) }
             SwitchRow(Icons.Filled.VisibilityOff, R.string.set_spoilers, R.string.set_spoilers_desc, spoilers) { p.setSpoilerProtection(it) }
             HorizontalDivider()
 

@@ -37,6 +37,10 @@ class Prefs(ctx: Context) {
     private val _digestHour = MutableStateFlow(sp.getInt(K_DIGEST_HOUR, 9))
     val digestHour: StateFlow<Int> = _digestHour.asStateFlow()
 
+    private val _autoTranslate = MutableStateFlow(sp.getBoolean(K_TRANSLATE, false))
+    val autoTranslate: StateFlow<Boolean> = _autoTranslate.asStateFlow()
+    fun setAutoTranslate(v: Boolean) { sp.edit().putBoolean(K_TRANSLATE, v).apply(); _autoTranslate.value = v }
+
     fun setDigestEnabled(v: Boolean) { sp.edit().putBoolean(K_DIGEST, v).apply(); _digest.value = v }
     fun setDigestHour(v: Int) { sp.edit().putInt(K_DIGEST_HOUR, v).apply(); _digestHour.value = v }
 
@@ -68,6 +72,7 @@ class Prefs(ctx: Context) {
         private const val K_UPD = "last_notified_update"
         private const val K_BAT = "battery_banner_dismissed"
         private const val K_DIGEST = "digest"
+        private const val K_TRANSLATE = "auto_translate"
         private const val K_DIGEST_HOUR = "digest_hour"
         private const val K_NOTIFY = "notify"
         private const val K_OFFSET = "notify_offset"

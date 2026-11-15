@@ -106,7 +106,7 @@ fun LibraryScreen(onOpen: (Int) -> Unit, onSettings: () -> Unit, onDiscover: () 
                     Box {
                         IconButton(onClick = { sortMenu = true }) { Icon(Icons.AutoMirrored.Filled.Sort, stringResource(R.string.sort)) }
                         DropdownMenu(expanded = sortMenu, onDismissRequest = { sortMenu = false }) {
-                            listOf(R.string.sort_name, R.string.sort_recent, R.string.sort_progress, R.string.sort_rating).forEachIndexed { i, res ->
+                            listOf(R.string.sort_name, R.string.sort_recent, R.string.sort_progress, R.string.sort_rating, R.string.sort_my_rating).forEachIndexed { i, res ->
                                 DropdownMenuItem(
                                     text = { Text(stringResource(res), fontWeight = if (i == sort) FontWeight.Bold else FontWeight.Normal) },
                                     onClick = { sort = i; sortMenu = false },
@@ -132,6 +132,7 @@ fun LibraryScreen(onOpen: (Int) -> Unit, onSettings: () -> Unit, onDiscover: () 
                 1 -> l.sortedByDescending { it.show.addedAt }
                 2 -> l.sortedByDescending { it.fraction }
                 3 -> l.sortedByDescending { it.show.rating ?: 0.0 }
+                4 -> l.sortedWith(compareByDescending<ShowProgress> { it.show.myRating }.thenBy { it.show.name.lowercase() })
                 else -> l.sortedBy { it.show.name.lowercase() }
             }
         }

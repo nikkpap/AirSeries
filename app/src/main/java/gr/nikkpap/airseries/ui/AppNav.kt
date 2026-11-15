@@ -96,7 +96,7 @@ fun AppNav(pendingShow: MutableStateFlow<Int?>) {
             composable("settings") { SettingsScreen(onBack = { nav.popBackStack() }, onAbout = { nav.navigate("about") }) }
             composable("about") { AboutScreen(onBack = { nav.popBackStack() }) }
             composable("show/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { e ->
-                DetailScreen(showId = e.arguments?.getInt("id") ?: 0, onBack = { nav.popBackStack() })
+                DetailScreen(showId = e.arguments?.getInt("id") ?: 0, onBack = { nav.popBackStack() }, onOpen = openShow)
             }
         }
     }

@@ -137,7 +137,8 @@ data class EpisodeDto(
 )
 
 @Serializable data class SearchResultDto(val score: Double = 0.0, val show: ShowDto)
-@Serializable data class PersonDto(val id: Int, val name: String = "")
-@Serializable data class CastDto(val person: PersonDto)
+@Serializable data class PersonDto(val id: Int, val name: String = "", val image: ImageDto? = null)
+@Serializable data class CharacterDto(val name: String = "")
+@Serializable data class CastDto(val person: PersonDto, val character: CharacterDto? = null)
 @Serializable data class CreditEmbedded(val show: ShowDto? = null)
 @Serializable data class CastCreditDto(@SerialName("_embedded") val embedded: CreditEmbedded? = null)

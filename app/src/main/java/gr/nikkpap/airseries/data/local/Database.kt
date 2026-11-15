@@ -45,6 +45,9 @@ data class ShowEntity(
     val lastSync: Long,
     /** 0 = watching, 1 = plan to watch, 2 = paused, 3 = dropped */
     @ColumnInfo(defaultValue = "0") val listStatus: Int = 0,
+    /** Personal rating 1..5 stars, 0 = not rated. */
+    @ColumnInfo(defaultValue = "0") val myRating: Int = 0,
+    val note: String? = null,
 )
 
 object ListStatus {
@@ -134,6 +137,12 @@ interface AppDao {
     @Query("UPDATE shows SET listStatus = :status WHERE id = :id")
     suspend fun setListStatus(id: Int, status: Int)
 
+    @Query("UPDATE shows SET myRating = :rating WHERE id = :id")
+    suspend fun setMyRating(id: Int, rating: Int)
+
+    @Query("UPDATE shows SET note = :note WHERE id = :id")
+    suspend fun setNote(id: Int, note: String?)
+
     // ---- episodes ----
     @Query("SELECT * FROM episodes ORDER BY showId, season, number")
     fun allEpisodesFlow(): Flow<List<EpisodeEntity>>
@@ -190,7 +199,7 @@ interface AppDao {
 
 @Database(
     entities = [ShowEntity::class, EpisodeEntity::class, RecCandidateEntity::class, DismissedEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -205,9 +214,17 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE shows ADD COLUMN listStatus INTEGER NOT NULL DEFAULT 0")
             }
         }
+
+        /** 1.0.6: personal star rating and notes. */
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE shows ADD COLUMN myRating INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE shows ADD COLUMN note TEXT")
+            }
+        }
         fun get(ctx: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(ctx.applicationContext, AppDatabase::class.java, "airseries.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .fallbackToDestructiveMigration()
                 .build()
                 .also { instance = it }

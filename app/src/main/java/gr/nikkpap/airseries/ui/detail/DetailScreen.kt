@@ -33,7 +33,9 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.EditCalendar
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
@@ -55,6 +57,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -87,11 +90,17 @@ import gr.nikkpap.airseries.data.local.ShowEntity
 import gr.nikkpap.airseries.data.local.airTime
 import gr.nikkpap.airseries.data.local.genreList
 import gr.nikkpap.airseries.data.local.isAired
+import gr.nikkpap.airseries.data.remote.CastDto
+import gr.nikkpap.airseries.data.remote.PersonDto
+import gr.nikkpap.airseries.data.remote.ShowDto
 import gr.nikkpap.airseries.ui.components.EmptyState
 import gr.nikkpap.airseries.ui.components.Poster
 import gr.nikkpap.airseries.ui.components.ProgressLine
 import gr.nikkpap.airseries.ui.components.appViewModel
+import gr.nikkpap.airseries.util.GreekTranslator
 import gr.nikkpap.airseries.util.ShareCard
+import gr.nikkpap.airseries.util.addToCalendar
+import gr.nikkpap.airseries.util.locale
 import gr.nikkpap.airseries.util.epCode
 import gr.nikkpap.airseries.util.formatDate
 import gr.nikkpap.airseries.util.formatDateTime
@@ -106,6 +115,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.net.URLEncoder
 
 data class DetailState(
     val loading: Boolean = true,
@@ -123,6 +133,10 @@ class DetailViewModel(c: AppContainer, private val id: Int) : ViewModel() {
     private val error = MutableStateFlow<String?>(null)
     val busy = MutableStateFlow(false)
     val spoilers: StateFlow<Boolean> = c.prefs.spoilerProtection
+    val autoTranslate: StateFlow<Boolean> = c.prefs.autoTranslate
+    val cast = MutableStateFlow<List<CastDto>>(emptyList())
+    /** Actor sheet: person + their shows (null list = loading). */
+    val person = MutableStateFlow<Pair<PersonDto, List<ShowDto>?>?>(null)
 
     val state: StateFlow<DetailState> = combine(repo.showFlow(id), repo.episodesFlow(id), remote, loading, error) { local, eps, rem, l, e ->
         val fav = local != null
@@ -138,7 +152,23 @@ class DetailViewModel(c: AppContainer, private val id: Int) : ViewModel() {
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DetailState())
 
-    init { load() }
+    init {
+        load()
+        viewModelScope.launch { cast.value = runCatching { repo.cast(id) }.getOrDefault(emptyList()) }
+    }
+
+    fun openPerson(p: PersonDto) {
+        person.value = p to null
+        viewModelScope.launch {
+            val shows = runCatching { repo.personShows(p.id) }.getOrDefault(emptyList())
+            if (person.value?.first?.id == p.id) person.value = p to shows
+        }
+    }
+
+    fun closePerson() { person.value = null }
+
+    fun setRating(r: Int) = viewModelScope.launch { runCatching { repo.setMyRating(id, r) } }
+    fun setNote(n: String) = viewModelScope.launch { runCatching { repo.setNote(id, n) } }
 
     fun load() {
         viewModelScope.launch {
@@ -197,11 +227,17 @@ class DetailViewModel(c: AppContainer, private val id: Int) : ViewModel() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun DetailScreen(showId: Int, onBack: () -> Unit) {
+fun DetailScreen(showId: Int, onBack: () -> Unit, onOpen: (Int) -> Unit) {
     val vm = appViewModel(key = "show_$showId") { DetailViewModel(it, showId) }
     val st by vm.state.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val spoilers by vm.spoilers.collectAsStateWithLifecycle()
+    val autoTranslate by vm.autoTranslate.collectAsStateWithLifecycle()
+    val cast by vm.cast.collectAsStateWithLifecycle()
+    val person by vm.person.collectAsStateWithLifecycle()
+    var translateOn by rememberSaveable(showId) { mutableStateOf(false) }
+    val translate = translateOn || autoTranslate
+    val offerTranslate = autoTranslate || LocalContext.current.locale().language == "el"
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     var confirmRemove by remember { mutableStateOf(false) }
@@ -291,6 +327,10 @@ fun DetailScreen(showId: Int, onBack: () -> Unit) {
                         Icon(Icons.Filled.Share, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.share))
                     }
                     IconButton(onClick = {
+                        val q = URLEncoder.encode("${show.name} ${year(show.premiered).orEmpty()} trailer", "UTF-8")
+                        openUrl(ctx, "https://www.youtube.com/results?search_query=$q")
+                    }) { Icon(Icons.Filled.SmartDisplay, stringResource(R.string.trailer)) }
+                    IconButton(onClick = {
                         val url = show.imdb?.let { "https://www.imdb.com/title/$it/" } ?: show.url ?: "https://www.tvmaze.com/shows/${show.id}"
                         openUrl(ctx, url)
                     }) { Icon(Icons.AutoMirrored.Filled.OpenInNew, "IMDb / TVmaze") }
@@ -320,6 +360,13 @@ fun DetailScreen(showId: Int, onBack: () -> Unit) {
                         )
                     }
                 }
+            }
+        }
+
+        // ---------- my rating & note ----------
+        if (st.isFavorite) {
+            item(key = "opinion") {
+                MyOpinionCard(show.myRating, show.note, onRate = vm::setRating, onSaveNote = vm::setNote)
             }
         }
 
@@ -367,13 +414,8 @@ fun DetailScreen(showId: Int, onBack: () -> Unit) {
         item {
             val sum = stripHtml(show.summary)
             if (sum.isNotEmpty()) {
-                Text(
-                    sum,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = if (summaryOpen) Int.MAX_VALUE else 4,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.fillMaxWidth().clickable { summaryOpen = !summaryOpen }.animateContentSize().padding(16.dp),
-                )
+                SummaryBlock(sum, translate, offerTranslate) { translateOn = !translateOn }
+                Spacer(Modifier.height(8.dp))
             }
             show.scheduleDays?.takeIf { it.isNotBlank() }?.let { days ->
                 Text(
@@ -382,6 +424,7 @@ fun DetailScreen(showId: Int, onBack: () -> Unit) {
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
             }
+            CastRow(cast) { vm.openPerson(it) }
             Text(
                 stringResource(R.string.episodes_header),
                 style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold,
@@ -424,6 +467,8 @@ fun DetailScreen(showId: Int, onBack: () -> Unit) {
                         hideSpoilers = spoilers && !ep.watched,
                         onToggle = { vm.toggleWatched(ep) },
                         onLongPress = { markUpToEp = ep },
+                        translate = translate,
+                        onCalendar = { addToCalendar(ctx, show, ep) },
                     )
                 }
             }
@@ -435,6 +480,13 @@ fun DetailScreen(showId: Int, onBack: () -> Unit) {
                 style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(16.dp).navigationBarsPadding(),
             )
+        }
+    }
+
+    person?.let { (p, shows) ->
+        PersonSheet(p, shows, show.id, onDismiss = vm::closePerson) { id ->
+            vm.closePerson()
+            onOpen(id)
         }
     }
 
@@ -478,7 +530,15 @@ private fun statusLabel(status: String?): String = when (status) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun EpisodeRow(ep: EpisodeEntity, aired: Boolean, hideSpoilers: Boolean, onToggle: () -> Unit, onLongPress: () -> Unit) {
+private fun EpisodeRow(
+    ep: EpisodeEntity,
+    aired: Boolean,
+    hideSpoilers: Boolean,
+    onToggle: () -> Unit,
+    onLongPress: () -> Unit,
+    translate: Boolean,
+    onCalendar: () -> Unit,
+) {
     val ctx = LocalContext.current
     var open by rememberSaveable(ep.id) { mutableStateOf(false) }
     var reveal by rememberSaveable(ep.id) { mutableStateOf(false) }
@@ -519,7 +579,14 @@ private fun EpisodeRow(ep: EpisodeEntity, aired: Boolean, hideSpoilers: Boolean,
                 color = if (aired) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.tertiary,
             )
             if (open) {
-                val sum = stripHtml(ep.summary)
+                val original = stripHtml(ep.summary)
+                var translated by remember(ep.id) { mutableStateOf<String?>(null) }
+                LaunchedEffect(translate, hidden) {
+                    if (translate && !hidden && translated == null && original.isNotEmpty()) {
+                        translated = runCatching { GreekTranslator.translate(original) }.getOrNull()
+                    }
+                }
+                val sum = if (translate) translated ?: original else original
                 when {
                     sum.isEmpty() -> Text(stringResource(R.string.no_summary), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     hidden -> TextButton(onClick = { reveal = true }) { Text(stringResource(R.string.spoiler_reveal)) }
@@ -533,7 +600,9 @@ private fun EpisodeRow(ep: EpisodeEntity, aired: Boolean, hideSpoilers: Boolean,
                 else Icon(Icons.Outlined.RadioButtonUnchecked, stringResource(R.string.mark_watched), modifier = Modifier.size(30.dp))
             }
         } else {
-            Icon(Icons.Filled.Schedule, null, Modifier.padding(12.dp), tint = MaterialTheme.colorScheme.tertiary)
+            IconButton(onClick = onCalendar) {
+                Icon(Icons.Filled.EditCalendar, stringResource(R.string.add_to_calendar), tint = MaterialTheme.colorScheme.tertiary)
+            }
         }
     }
 }
