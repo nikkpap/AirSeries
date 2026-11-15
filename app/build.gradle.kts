@@ -20,6 +20,13 @@ android {
         versionCode = buildNumber
         versionName = "1.0.$buildNumber"
         buildConfigField("String", "GITHUB_REPO", "\"nikkpap/AirSeries\"")
+        // Phones only (ARM). Drops x86 copies of the translation engine (~35 MB).
+        ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
+    }
+
+    packaging {
+        // Compress native libraries inside the APK -> much smaller download.
+        jniLibs { useLegacyPackaging = true }
     }
 
     signingConfigs {
