@@ -3,10 +3,12 @@ package gr.nikkpap.airseries
 import android.app.Application
 import android.content.Context
 import androidx.work.ExistingWorkPolicy
+import gr.nikkpap.airseries.data.MovieRepository
 import gr.nikkpap.airseries.data.Prefs
 import gr.nikkpap.airseries.data.Recommender
 import gr.nikkpap.airseries.data.Repository
 import gr.nikkpap.airseries.data.local.AppDatabase
+import gr.nikkpap.airseries.data.remote.TmdbApi
 import gr.nikkpap.airseries.data.remote.TvMazeApi
 import gr.nikkpap.airseries.work.Notifier
 import gr.nikkpap.airseries.work.Scheduler
@@ -30,7 +32,9 @@ class AppContainer(ctx: Context) {
     val prefs = Prefs(ctx)
     val db = AppDatabase.get(ctx)
     val api = TvMazeApi.create(ctx)
-    val repo = Repository(ctx.applicationContext, api, db, prefs)
+    val repo = Repository(ctx.applicationContext, api, db, prefs) { movies }
+    val tmdb = TmdbApi.create(ctx)
+    val movies = MovieRepository(ctx.applicationContext, tmdb, db)
     val recommender = Recommender(api, db, prefs)
 }
 

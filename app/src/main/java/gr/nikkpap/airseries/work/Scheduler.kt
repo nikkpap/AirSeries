@@ -12,6 +12,9 @@ import androidx.work.workDataOf
 import gr.nikkpap.airseries.container
 import gr.nikkpap.airseries.data.local.EpisodeEntity
 import gr.nikkpap.airseries.data.local.ListStatus
+import gr.nikkpap.airseries.data.local.MovieEntity
+import gr.nikkpap.airseries.data.local.MovieStatus
+import java.time.LocalDate
 import java.time.Duration
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -90,6 +93,31 @@ object Scheduler {
             .setInitialDelay(delay, TimeUnit.MILLISECONDS)
             .build()
         wm.enqueueUniqueWork("digest", policy, req)
+    }
+
+    /** Movie reminders: 10:00 on the Greek cinema day (bit 1) and online day (bit 2). */
+    fun scheduleMovie(ctx: Context, m: MovieEntity) {
+        if (m.status != MovieStatus.PLAN) { cancelMovie(ctx, m.id); return }
+        if (!ctx.container.prefs.notifyEnabled.value) return
+        val wm = WorkManager.getInstance(ctx)
+        val zone = ZoneId.systemDefault()
+        val now = ZonedDateTime.now(zone)
+        listOf(1 to m.releaseGr, 2 to m.digitalGr).forEach { (bit, date) ->
+            if (date == null || (m.notified and bit) != 0) return@forEach
+            val day = runCatching { LocalDate.parse(date.take(10)) }.getOrNull() ?: return@forEach
+            val fire = day.atTime(10, 0).atZone(zone)
+            if (fire.isBefore(now.minusHours(12))) return@forEach
+            val req = OneTimeWorkRequestBuilder<MovieReminderWorker>()
+                .setInitialDelay(Duration.between(now, fire).toMillis().coerceAtLeast(0), TimeUnit.MILLISECONDS)
+                .setInputData(workDataOf(MovieReminderWorker.KEY_ID to m.id, MovieReminderWorker.KEY_BIT to bit))
+                .addTag("movie_${m.id}")
+                .build()
+            wm.enqueueUniqueWork("movie_${m.id}_$bit", ExistingWorkPolicy.REPLACE, req)
+        }
+    }
+
+    fun cancelMovie(ctx: Context, id: Int) {
+        WorkManager.getInstance(ctx).cancelAllWorkByTag("movie_$id")
     }
 
     fun cancelShow(ctx: Context, showId: Int) {

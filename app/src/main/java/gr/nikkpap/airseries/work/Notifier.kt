@@ -20,6 +20,7 @@ import coil.request.SuccessResult
 import gr.nikkpap.airseries.MainActivity
 import gr.nikkpap.airseries.R
 import gr.nikkpap.airseries.data.local.EpisodeEntity
+import gr.nikkpap.airseries.data.local.MovieEntity
 import gr.nikkpap.airseries.data.local.ShowEntity
 import gr.nikkpap.airseries.util.epCode
 import gr.nikkpap.airseries.util.formatDateTime
@@ -30,6 +31,7 @@ object Notifier {
     const val CH_NEWS = "news"
     const val EXTRA_SHOW_ID = "showId"
     const val EXTRA_EP_ID = "epId"
+    const val EXTRA_MOVIE_ID = "movieId"
 
     fun createChannels(ctx: Context) {
         val nm = ctx.getSystemService(NotificationManager::class.java)
@@ -101,6 +103,27 @@ object Notifier {
             .setContentIntent(openShow(ctx, show.id, -ep.id))
             .build()
         NotificationManagerCompat.from(ctx).notify(-ep.id, n)
+    }
+
+    @SuppressLint("MissingPermission")
+    fun movie(ctx: Context, m: MovieEntity, bit: Int, bmp: Bitmap?) {
+        if (!canNotify(ctx)) return
+        val title = ctx.getString(if (bit == 1) R.string.mv_notif_cinema else R.string.mv_notif_online, m.title)
+        val text = m.providers?.replace("|", ", ")?.takeIf { bit == 2 }?.let { ctx.getString(R.string.mv_notif_on, it) }
+            ?: ctx.getString(R.string.mv_notif_tap)
+        val i = Intent(ctx, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(EXTRA_MOVIE_ID, m.id)
+        }
+        val b = NotificationCompat.Builder(ctx, CH_EPISODES)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(title)
+            .setContentText(text)
+            .setAutoCancel(true)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setContentIntent(PendingIntent.getActivity(ctx, 900_000 + m.id % 99_999, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
+        if (bmp != null) b.setLargeIcon(bmp).setStyle(NotificationCompat.BigPictureStyle().bigPicture(bmp).bigLargeIcon(null as Bitmap?))
+        NotificationManagerCompat.from(ctx).notify("movie", m.id, b.build())
     }
 
     @SuppressLint("MissingPermission")

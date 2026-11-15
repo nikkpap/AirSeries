@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -33,6 +34,8 @@ import gr.nikkpap.airseries.R
 import gr.nikkpap.airseries.ui.detail.DetailScreen
 import gr.nikkpap.airseries.ui.discover.DiscoverScreen
 import gr.nikkpap.airseries.ui.home.HomeScreen
+import gr.nikkpap.airseries.ui.movies.MovieDetailScreen
+import gr.nikkpap.airseries.ui.movies.MoviesScreen
 import gr.nikkpap.airseries.ui.library.LibraryScreen
 import gr.nikkpap.airseries.ui.schedule.ScheduleScreen
 import gr.nikkpap.airseries.ui.settings.AboutScreen
@@ -45,6 +48,7 @@ private enum class Tab(val route: String, @StringRes val label: Int, val icon: I
     Home("home", R.string.tab_home, Icons.Filled.PlayCircle),
     Schedule("schedule", R.string.tab_schedule, Icons.Filled.CalendarMonth),
     Discover("discover", R.string.tab_discover, Icons.Filled.Explore),
+    Movies("movies", R.string.tab_movies, Icons.Filled.Movie),
     Library("library", R.string.tab_library, Icons.Filled.Favorite),
 }
 
@@ -55,19 +59,20 @@ private fun NavHostController.goTab(route: String) = navigate(route) {
 }
 
 @Composable
-fun AppNav(pendingShow: MutableStateFlow<Int?>) {
+fun AppNav(pendingRoute: MutableStateFlow<String?>) {
     val nav = rememberNavController()
-    val pending by pendingShow.collectAsStateWithLifecycle()
+    val pending by pendingRoute.collectAsStateWithLifecycle()
     LaunchedEffect(pending) {
         pending?.let {
-            nav.navigate("show/$it")
-            pendingShow.value = null
+            nav.navigate(it)
+            pendingRoute.value = null
         }
     }
     val entry by nav.currentBackStackEntryAsState()
     val route = entry?.destination?.route
     val openShow: (Int) -> Unit = { nav.navigate("show/$it") }
     val openSettings: () -> Unit = { nav.navigate("settings") }
+    val openMovie: (Int) -> Unit = { nav.navigate("movie/$it") }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -92,6 +97,10 @@ fun AppNav(pendingShow: MutableStateFlow<Int?>) {
             }
             composable(Tab.Schedule.route) { ScheduleScreen(onOpen = openShow) }
             composable(Tab.Discover.route) { DiscoverScreen(onOpen = openShow) }
+            composable(Tab.Movies.route) { MoviesScreen(onOpen = openMovie) }
+            composable("movie/{id}", arguments = listOf(navArgument("id") { type = NavType.IntType })) { e ->
+                MovieDetailScreen(movieId = e.arguments?.getInt("id") ?: 0, onBack = { nav.popBackStack() }, onOpen = openMovie)
+            }
             composable(Tab.Library.route) {
                 LibraryScreen(
                     onOpen = openShow, onSettings = openSettings,

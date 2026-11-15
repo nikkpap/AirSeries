@@ -9,6 +9,8 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkerParameters
 import gr.nikkpap.airseries.container
 import gr.nikkpap.airseries.data.local.ListStatus
+import gr.nikkpap.airseries.data.local.MovieStatus
+import gr.nikkpap.airseries.data.remote.TmdbApi
 import gr.nikkpap.airseries.data.local.airTime
 import java.time.LocalDate
 import java.time.ZoneId
@@ -31,6 +33,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
             if (System.currentTimeMillis() - c.prefs.lastRecsRefresh > 7L * 24 * 3_600_000) {
                 runCatching { c.recommender.refreshCandidates() }
             }
+            runCatching { c.movies.refreshPlanned() }
             Updater.newerVersion()?.let { info ->
                 if (c.prefs.lastNotifiedUpdate < info.versionCode) {
                     Notifier.update(applicationContext, info.versionName)
@@ -66,6 +69,26 @@ class ReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(c
     }
 
     companion object { const val KEY_EP = "epId" }
+}
+
+/** Fires on a movie's Greek release day (cinema or online). */
+class MovieReminderWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, params) {
+    override suspend fun doWork(): Result {
+        val c = applicationContext.container
+        val id = inputData.getInt(KEY_ID, -1)
+        val bit = inputData.getInt(KEY_BIT, 1)
+        val m = c.db.dao().movie(id) ?: return Result.success()
+        if (m.status != MovieStatus.PLAN || (m.notified and bit) != 0 || !c.prefs.notifyEnabled.value) return Result.success()
+        val bmp = Notifier.loadBitmap(applicationContext, TmdbApi.poster(m.backdrop ?: m.poster, "w780"))
+        Notifier.movie(applicationContext, m, bit, bmp)
+        c.db.dao().addMovieNotified(id, bit)
+        return Result.success()
+    }
+
+    companion object {
+        const val KEY_ID = "movieId"
+        const val KEY_BIT = "bit"
+    }
 }
 
 /** Daily morning summary of today's episodes; re-plans itself for tomorrow. */

@@ -20,6 +20,8 @@ android {
         versionCode = buildNumber
         versionName = "1.0.$buildNumber"
         buildConfigField("String", "GITHUB_REPO", "\"nikkpap/AirSeries\"")
+        // Movies: personal TMDB key from the GitHub secret TMDB_API_KEY (empty locally = movies tab shows a hint).
+        buildConfigField("String", "TMDB_API_KEY", "\"${(System.getenv("TMDB_API_KEY") ?: "").trim()}\"")
         // Phones only (ARM). Drops x86 copies of the translation engine (~35 MB).
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
     }

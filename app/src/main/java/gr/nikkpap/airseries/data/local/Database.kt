@@ -95,6 +95,38 @@ data class RecCandidateEntity(
     val fetchedAt: Long,
 )
 
+/** A movie you saved (TMDB). status: 0 = plan to watch, 1 = watched. notified: bit 1 cinema, bit 2 online. */
+@Entity(tableName = "movies")
+data class MovieEntity(
+    @PrimaryKey val id: Int,
+    val title: String,
+    val originalTitle: String?,
+    val overview: String?,
+    val poster: String?,
+    val backdrop: String?,
+    val releaseDate: String?,
+    val releaseGr: String?,
+    val digitalGr: String?,
+    val runtime: Int?,
+    val rating: Double?,
+    val genres: String,
+    val providers: String?,
+    val trailerKey: String?,
+    val imdb: String?,
+    val status: Int,
+    val watchedAt: Long?,
+    val myRating: Int,
+    val note: String?,
+    val addedAt: Long,
+    val lastSync: Long,
+    val notified: Int,
+)
+
+object MovieStatus {
+    const val PLAN = 0
+    const val WATCHED = 1
+}
+
 @Entity(tableName = "dismissed")
 data class DismissedEntity(@PrimaryKey val showId: Int)
 
@@ -177,6 +209,37 @@ interface AppDao {
     @Query("UPDATE episodes SET notified = 1 WHERE id = :id")
     suspend fun setNotified(id: Int)
 
+    // ---- movies ----
+    @Query("SELECT * FROM movies ORDER BY addedAt DESC")
+    fun moviesFlow(): Flow<List<MovieEntity>>
+
+    @Query("SELECT * FROM movies")
+    suspend fun movies(): List<MovieEntity>
+
+    @Query("SELECT * FROM movies WHERE id = :id")
+    fun movieFlow(id: Int): Flow<MovieEntity?>
+
+    @Query("SELECT * FROM movies WHERE id = :id")
+    suspend fun movie(id: Int): MovieEntity?
+
+    @Upsert
+    suspend fun upsertMovie(m: MovieEntity)
+
+    @Query("DELETE FROM movies WHERE id = :id")
+    suspend fun deleteMovie(id: Int)
+
+    @Query("UPDATE movies SET status = :status, watchedAt = :at WHERE id = :id")
+    suspend fun setMovieStatus(id: Int, status: Int, at: Long?)
+
+    @Query("UPDATE movies SET myRating = :rating WHERE id = :id")
+    suspend fun setMovieRating(id: Int, rating: Int)
+
+    @Query("UPDATE movies SET note = :note WHERE id = :id")
+    suspend fun setMovieNote(id: Int, note: String?)
+
+    @Query("UPDATE movies SET notified = notified | :bit WHERE id = :id")
+    suspend fun addMovieNotified(id: Int, bit: Int)
+
     // ---- recommendations ----
     @Query("SELECT * FROM rec_candidates")
     fun candidatesFlow(): Flow<List<RecCandidateEntity>>
@@ -198,8 +261,8 @@ interface AppDao {
 }
 
 @Database(
-    entities = [ShowEntity::class, EpisodeEntity::class, RecCandidateEntity::class, DismissedEntity::class],
-    version = 3,
+    entities = [ShowEntity::class, EpisodeEntity::class, RecCandidateEntity::class, DismissedEntity::class, MovieEntity::class],
+    version = 4,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -222,9 +285,24 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE shows ADD COLUMN note TEXT")
             }
         }
+
+        /** 1.1.0: movies (TMDB). Must match MovieEntity exactly. */
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `movies` (" +
+                        "`id` INTEGER NOT NULL, `title` TEXT NOT NULL, `originalTitle` TEXT, `overview` TEXT, " +
+                        "`poster` TEXT, `backdrop` TEXT, `releaseDate` TEXT, `releaseGr` TEXT, `digitalGr` TEXT, " +
+                        "`runtime` INTEGER, `rating` REAL, `genres` TEXT NOT NULL, `providers` TEXT, `trailerKey` TEXT, " +
+                        "`imdb` TEXT, `status` INTEGER NOT NULL, `watchedAt` INTEGER, `myRating` INTEGER NOT NULL, " +
+                        "`note` TEXT, `addedAt` INTEGER NOT NULL, `lastSync` INTEGER NOT NULL, `notified` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`id`))"
+                )
+            }
+        }
         fun get(ctx: Context): AppDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(ctx.applicationContext, AppDatabase::class.java, "airseries.db")
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .fallbackToDestructiveMigration()
                 .build()
                 .also { instance = it }

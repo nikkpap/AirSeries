@@ -31,7 +31,16 @@ data class BackupShow(
 )
 
 @Serializable
-data class BackupFile(val app: String = "AirSeries", val version: Int = 1, val created: Long = 0, val shows: List<BackupShow> = emptyList())
+data class BackupMovie(val id: Int, val title: String = "", val status: Int = 0, val myRating: Int = 0, val note: String? = null)
+
+@Serializable
+data class BackupFile(
+    val app: String = "AirSeries",
+    val version: Int = 1,
+    val created: Long = 0,
+    val shows: List<BackupShow> = emptyList(),
+    val movies: List<BackupMovie> = emptyList(),
+)
 
 data class Announcement(val show: ShowEntity, val episode: EpisodeEntity)
 
@@ -40,6 +49,7 @@ class Repository(
     private val api: TvMazeApi,
     private val db: AppDatabase,
     private val prefs: Prefs,
+    private val moviesRepo: () -> MovieRepository,
 ) {
     private val dao = db.dao()
 
@@ -182,6 +192,7 @@ class Repository(
             shows = dao.shows().map { s ->
                 BackupShow(s.id, s.name, eps[s.id].orEmpty().filter { it.watched }.map { it.id }, s.listStatus, s.myRating, s.note)
             },
+            movies = dao.movies().map { BackupMovie(it.id, it.title, it.status, it.myRating, it.note) },
         )
         TvMazeApi.json.encodeToString(BackupFile.serializer(), file)
     }
@@ -201,6 +212,18 @@ class Repository(
                 count++
             }
             delay(400)
+        }
+        val mr = moviesRepo()
+        if (mr.hasKey) {
+            for (m in file.movies) {
+                val ok = runCatching { if (dao.movie(m.id) == null) mr.add(m.id, m.status) }.isSuccess
+                if (ok) {
+                    dao.setMovieRating(m.id, m.myRating)
+                    dao.setMovieNote(m.id, m.note)
+                    count++
+                }
+                delay(200)
+            }
         }
         count
     }

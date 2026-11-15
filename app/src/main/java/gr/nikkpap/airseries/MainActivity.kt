@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : AppCompatActivity() {
 
-    private val pendingShow = MutableStateFlow<Int?>(null)
+    private val pendingRoute = MutableStateFlow<String?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -52,7 +52,7 @@ class MainActivity : AppCompatActivity() {
             }
             AirSeriesTheme(dark = dark, dynamic = dynamic) {
                 RequestNotificationPermission()
-                AppNav(pendingShow)
+                AppNav(pendingRoute)
                 UpdateDialog()
             }
         }
@@ -64,11 +64,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(i: Intent?) {
-        val id = i?.getIntExtra(Notifier.EXTRA_SHOW_ID, -1) ?: -1
-        if (id > 0) {
-            pendingShow.value = id
-            i?.removeExtra(Notifier.EXTRA_SHOW_ID)
-        }
+        val show = i?.getIntExtra(Notifier.EXTRA_SHOW_ID, -1) ?: -1
+        val movie = i?.getIntExtra(Notifier.EXTRA_MOVIE_ID, -1) ?: -1
+        if (show > 0) pendingRoute.value = "show/$show"
+        if (movie > 0) pendingRoute.value = "movie/$movie"
+        i?.removeExtra(Notifier.EXTRA_SHOW_ID)
+        i?.removeExtra(Notifier.EXTRA_MOVIE_ID)
     }
 }
 
