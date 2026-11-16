@@ -54,6 +54,7 @@ import java.util.concurrent.TimeUnit
 object Trakt {
     private const val BASE = "https://api.trakt.tv"
     private const val OOB = "urn:ietf:wg:oauth:2.0:oob"
+    private const val APP_REDIRECT = "airseries://trakt"
     private val JSON = "application/json".toMediaType()
 
     val configured: Boolean get() = BuildConfig.TRAKT_CLIENT_ID.isNotBlank() && BuildConfig.TRAKT_CLIENT_SECRET.isNotBlank()
@@ -189,21 +190,25 @@ object Trakt {
         val access = p.getString("access", null) ?: return null
         if (System.currentTimeMillis() < p.getLong("expires_at", 0L) - 10 * 60_000L) return access
         val refresh = p.getString("refresh", null) ?: return null
-        val r = call(post("/oauth/token", buildJsonObject {
-            put("refresh_token", refresh)
-            put("client_id", BuildConfig.TRAKT_CLIENT_ID)
-            put("client_secret", BuildConfig.TRAKT_CLIENT_SECRET)
-            put("redirect_uri", OOB)
-            put("grant_type", "refresh_token")
-        }).build())
-        return when (r.code) {
-            200 -> {
+        // Device-code apps normally use the OOB redirect; newer Trakt apps may only have the custom scheme.
+        var last = 0
+        for (redirect in listOf(OOB, APP_REDIRECT)) {
+            val r = call(post("/oauth/token", buildJsonObject {
+                put("refresh_token", refresh)
+                put("client_id", BuildConfig.TRAKT_CLIENT_ID)
+                put("client_secret", BuildConfig.TRAKT_CLIENT_SECRET)
+                put("redirect_uri", redirect)
+                put("grant_type", "refresh_token")
+            }).build())
+            last = r.code
+            if (r.code == 200) {
                 saveTokens(ctx, TvMazeApi.json.parseToJsonElement(r.body).jsonObject)
-                p.getString("access", null)
+                return p.getString("access", null)
             }
-            400, 401 -> { clear(ctx); null } // refresh token revoked → user must log in again
-            else -> access
+            if (r.code != 400 && r.code != 401) break
         }
+        if (last == 400 || last == 401) { clear(ctx); return null } // refresh token revoked → log in again
+        return access
     }
 
     suspend fun logout(ctx: Context) {
