@@ -272,7 +272,7 @@
     <string name="my_list">Η λίστα μου</string>
     <string name="rate_hint">Πάτα τα αστέρια για βαθμολογία</string>
     <string name="trakt_header">Trakt</string>
-    <string name="trakt_not_configured">Ο συγχρονισμός Trakt δεν είναι ρυθμισμένος σε αυτή την έκδοση (χρειάζονται TRAKT_CLIENT_ID και TRAKT_CLIENT_SECRET στο GitHub).</string>
+    <string name="trakt_not_configured">Ο συγχρονισμός Trakt δεν είναι ρυθμισμένος σε αυτή την έκδοση (χρειάζεται το secret TRAKT_CLIENT_ID στο GitHub).</string>
     <string name="trakt_connect">Σύνδεση με Trakt</string>
     <string name="trakt_connect_desc">Συγχρονισμός ειδωμένων επεισοδίων, ταινιών και watchlist και προς τις δύο μεριές</string>
     <string name="trakt_connected_as">Συνδεδεμένος ως %1$s</string>

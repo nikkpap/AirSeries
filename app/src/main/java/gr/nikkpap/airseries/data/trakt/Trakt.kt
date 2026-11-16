@@ -47,7 +47,7 @@ import java.util.concurrent.TimeUnit
 /**
  * Trakt.tv two-way sync.
  *  • Login: device code (enter a short code on trakt.tv/activate).
- *  • Access tokens last 24 h and are refreshed automatically.
+ *  • Access tokens are refreshed automatically (refresh tokens are single-use, the new one is saved each time).
  *  • Pull: watched + watchlist for shows and movies (paginated, 250 per page).
  *  • Push: every ✓ / un-✓ in AirSeries goes to your Trakt history (queued when offline).
  */
@@ -57,7 +57,13 @@ object Trakt {
     private const val APP_REDIRECT = "airseries://trakt"
     private val JSON = "application/json".toMediaType()
 
-    val configured: Boolean get() = BuildConfig.TRAKT_CLIENT_ID.isNotBlank() && BuildConfig.TRAKT_CLIENT_SECRET.isNotBlank()
+    /** Only the Client ID is needed: since Oct 2026 new Trakt apps are secret-less (PKCE / device code). */
+    val configured: Boolean get() = BuildConfig.TRAKT_CLIENT_ID.isNotBlank()
+
+    /** Older Trakt apps still have a secret — send it only if one was configured. */
+    private fun kotlinx.serialization.json.JsonObjectBuilder.putSecret() {
+        if (BuildConfig.TRAKT_CLIENT_SECRET.isNotBlank()) put("client_secret", BuildConfig.TRAKT_CLIENT_SECRET)
+    }
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -143,7 +149,7 @@ object Trakt {
             val r = call(post("/oauth/device/token", buildJsonObject {
                 put("code", dc.deviceCode)
                 put("client_id", BuildConfig.TRAKT_CLIENT_ID)
-                put("client_secret", BuildConfig.TRAKT_CLIENT_SECRET)
+                putSecret()
             }).build())
             when (r.code) {
                 200 -> {
@@ -196,7 +202,7 @@ object Trakt {
             val r = call(post("/oauth/token", buildJsonObject {
                 put("refresh_token", refresh)
                 put("client_id", BuildConfig.TRAKT_CLIENT_ID)
-                put("client_secret", BuildConfig.TRAKT_CLIENT_SECRET)
+                putSecret()
                 put("redirect_uri", redirect)
                 put("grant_type", "refresh_token")
             }).build())
@@ -217,7 +223,7 @@ object Trakt {
             call(post("/oauth/revoke", buildJsonObject {
                 put("token", token)
                 put("client_id", BuildConfig.TRAKT_CLIENT_ID)
-                put("client_secret", BuildConfig.TRAKT_CLIENT_SECRET)
+                putSecret()
             }).build())
         }
         clear(ctx)

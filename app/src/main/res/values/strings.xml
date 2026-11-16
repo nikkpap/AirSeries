@@ -273,7 +273,7 @@
     <string name="my_list">My list</string>
     <string name="rate_hint">Tap the stars to rate</string>
     <string name="trakt_header">Trakt</string>
-    <string name="trakt_not_configured">Trakt sync is not set up in this build (needs TRAKT_CLIENT_ID and TRAKT_CLIENT_SECRET on GitHub).</string>
+    <string name="trakt_not_configured">Trakt sync is not set up in this build (needs the TRAKT_CLIENT_ID secret on GitHub).</string>
     <string name="trakt_connect">Connect Trakt</string>
     <string name="trakt_connect_desc">Sync watched episodes, movies and watchlist both ways</string>
     <string name="trakt_connected_as">Connected as %1$s</string>
