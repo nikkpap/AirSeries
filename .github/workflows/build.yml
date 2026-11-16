@@ -3,6 +3,10 @@ name: Build & Release APK
 on:
   push:
     branches: [ main, master ]
+    # Docs and screenshots don't need a new APK
+    paths-ignore:
+      - 'README.md'
+      - 'screenshots/**'
   workflow_dispatch:
 
 permissions:
