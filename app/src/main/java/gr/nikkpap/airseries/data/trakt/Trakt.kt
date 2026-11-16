@@ -232,7 +232,7 @@ object Trakt {
             val r = authed(ctx, base("$path${sep}page=$page&limit=250").get())
             if (r.code !in 200..299) throw IllegalStateException("Trakt HTTP ${r.code}")
             val arr = TvMazeApi.json.parseToJsonElement(r.body) as? JsonArray ?: break
-            out += arr
+            out.addAll(arr)
             if (arr.isEmpty() || page >= r.pageCount) break
             page++
         }
