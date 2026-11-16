@@ -269,6 +269,7 @@
     <string name="mv_notif_on">Στο %1$s</string>
     <string name="mv_notif_tap">Πάτα για να δεις πού παίζει</string>
     <string name="tmdb_attribution">Δεδομένα και εικόνες ταινιών: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Διαθεσιμότητα streaming από JustWatch.</string>
+    <string name="my_list">Η λίστα μου</string>
     <string name="upd_title">Νέα έκδοση %1$s</string>
     <string name="upd_current">Εγκατεστημένη έκδοση: %1$s</string>
     <string name="upd_install">Ενημέρωση</string>

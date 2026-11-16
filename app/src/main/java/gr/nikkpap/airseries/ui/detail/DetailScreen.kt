@@ -9,6 +9,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,7 +36,9 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.EditCalendar
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Tv
 import androidx.compose.material.icons.filled.SmartDisplay
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.WifiOff
@@ -93,6 +97,8 @@ import gr.nikkpap.airseries.data.local.isAired
 import gr.nikkpap.airseries.data.remote.CastDto
 import gr.nikkpap.airseries.data.remote.PersonDto
 import gr.nikkpap.airseries.data.remote.ShowDto
+import gr.nikkpap.airseries.ui.components.ActionBar
+import gr.nikkpap.airseries.ui.components.ActionItem
 import gr.nikkpap.airseries.ui.components.EmptyState
 import gr.nikkpap.airseries.ui.components.Poster
 import gr.nikkpap.airseries.ui.components.ProgressLine
@@ -225,7 +231,7 @@ class DetailViewModel(c: AppContainer, private val id: Int) : ViewModel() {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun DetailScreen(showId: Int, onBack: () -> Unit, onOpen: (Int) -> Unit) {
     val vm = appViewModel(key = "show_$showId") { DetailViewModel(it, showId) }
@@ -300,69 +306,73 @@ fun DetailScreen(showId: Int, onBack: () -> Unit, onOpen: (Int) -> Unit) {
         }
 
         // ---------- genres & actions ----------
-        item {
+        item(key = "actions") {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 if (show.genreList().isNotEmpty()) {
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        show.genreList().forEach { AssistChip(onClick = {}, label = { Text(it) }) }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        show.genreList().forEach { AssistChip(onClick = {}, label = { Text(it, maxLines = 1) }) }
                     }
                 }
-                Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (st.isFavorite) {
-                        FilledTonalButton(onClick = { confirmRemove = true }, enabled = !busy, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Filled.Favorite, null, tint = MaterialTheme.colorScheme.secondary)
-                            Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.in_favorites))
-                        }
-                    } else {
-                        Button(onClick = vm::toggleFavorite, enabled = !busy, modifier = Modifier.weight(1f)) {
-                            if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                            else Icon(Icons.Filled.FavoriteBorder, null)
-                            Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.add_favorite))
-                        }
+                Spacer(Modifier.height(6.dp))
+                if (st.isFavorite) {
+                    FilledTonalButton(
+                        onClick = { confirmRemove = true }, enabled = !busy,
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                    ) {
+                        Icon(Icons.Filled.Favorite, null, tint = MaterialTheme.colorScheme.secondary)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.in_favorites), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    OutlinedButton(onClick = {
+                } else {
+                    Button(onClick = vm::toggleFavorite, enabled = !busy, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+                        if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                        else Icon(Icons.Filled.FavoriteBorder, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.add_favorite), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                val actions = buildList {
+                    add(ActionItem(Icons.Filled.Share, stringResource(R.string.share)) {
                         val prog = st.progress.takeIf { st.isFavorite }
                         scope.launch { runCatching { ShareCard.share(ctx, show, prog) }.onFailure { shareShow(ctx, show) } }
-                    }) {
-                        Icon(Icons.Filled.Share, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.share))
-                    }
-                    IconButton(onClick = {
+                    })
+                    add(ActionItem(Icons.Filled.SmartDisplay, stringResource(R.string.trailer)) {
                         val q = URLEncoder.encode("${show.name} ${year(show.premiered).orEmpty()} trailer", "UTF-8")
                         openUrl(ctx, "https://www.youtube.com/results?search_query=$q")
-                    }) { Icon(Icons.Filled.SmartDisplay, stringResource(R.string.trailer)) }
-                    IconButton(onClick = {
-                        val url = show.imdb?.let { "https://www.imdb.com/title/$it/" } ?: show.url ?: "https://www.tvmaze.com/shows/${show.id}"
-                        openUrl(ctx, url)
-                    }) { Icon(Icons.AutoMirrored.Filled.OpenInNew, "IMDb / TVmaze") }
+                    })
+                    add(ActionItem(Icons.Filled.Tv, "JustWatch") { openUrl(ctx, justWatchUrl(show.name)) })
+                    show.network?.takeIf { it.isNotBlank() }?.let { net ->
+                        add(ActionItem(Icons.Filled.PlayCircle, net) { openUrl(ctx, platformUrl(show.name, net)) })
+                    }
+                    add(ActionItem(Icons.AutoMirrored.Filled.OpenInNew, if (show.imdb != null) "IMDb" else "TVmaze") {
+                        openUrl(ctx, show.imdb?.let { "https://www.imdb.com/title/$it/" } ?: show.url ?: "https://www.tvmaze.com/shows/${show.id}")
+                    })
                 }
+                ActionBar(actions)
             }
-        }
-
-        // ---------- where to watch ----------
-        item(key = "where") {
-            WhereToWatchRow(show.name, show.network) { url -> openUrl(ctx, url) }
         }
 
         // ---------- personal list ----------
         if (st.isFavorite) {
-            item {
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    listOf(
-                        ListStatus.WATCHING to R.string.list_watching,
-                        ListStatus.PLAN to R.string.list_plan,
-                        ListStatus.PAUSED to R.string.list_paused,
-                        ListStatus.DROPPED to R.string.list_dropped,
-                    ).forEach { (value, label) ->
-                        val selected = show.listStatus == value
-                        FilterChip(
-                            selected = selected,
-                            onClick = { vm.setList(value) },
-                            label = { Text(stringResource(label)) },
-                            leadingIcon = if (selected) { { Icon(Icons.Filled.Check, null, Modifier.size(16.dp)) } } else null,
-                        )
+            item(key = "list") {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                    Text(stringResource(R.string.my_list), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(
+                            ListStatus.WATCHING to R.string.list_watching,
+                            ListStatus.PLAN to R.string.list_plan,
+                            ListStatus.PAUSED to R.string.list_paused,
+                            ListStatus.DROPPED to R.string.list_dropped,
+                        ).forEach { (value, label) ->
+                            val selected = show.listStatus == value
+                            FilterChip(
+                                selected = selected,
+                                onClick = { vm.setList(value) },
+                                label = { Text(stringResource(label), maxLines = 1) },
+                                leadingIcon = if (selected) { { Icon(Icons.Filled.Check, null, Modifier.size(16.dp)) } } else null,
+                            )
+                        }
                     }
                 }
             }

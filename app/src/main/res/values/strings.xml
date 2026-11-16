@@ -270,6 +270,7 @@
     <string name="mv_notif_on">On %1$s</string>
     <string name="mv_notif_tap">Tap to see where to watch</string>
     <string name="tmdb_attribution">Movie data and images: TMDB. This product uses the TMDB API but is not endorsed or certified by TMDB. Streaming availability by JustWatch.</string>
+    <string name="my_list">My list</string>
     <string name="upd_title">New version %1$s</string>
     <string name="upd_current">Installed version: %1$s</string>
     <string name="upd_install">Update</string>

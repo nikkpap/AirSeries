@@ -6,6 +6,8 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -78,6 +80,8 @@ import gr.nikkpap.airseries.data.remote.TmdbApi
 import gr.nikkpap.airseries.data.remote.TmdbMovie
 import gr.nikkpap.airseries.data.remote.TmdbProvider
 import gr.nikkpap.airseries.data.trailerKey
+import gr.nikkpap.airseries.ui.components.ActionBar
+import gr.nikkpap.airseries.ui.components.ActionItem
 import gr.nikkpap.airseries.ui.components.EmptyState
 import gr.nikkpap.airseries.ui.components.Poster
 import gr.nikkpap.airseries.ui.components.appViewModel
@@ -128,6 +132,7 @@ class MovieDetailViewModel(c: AppContainer, private val id: Int) : ViewModel() {
     fun setNote(n: String) = viewModelScope.launch { runCatching { repo.setNote(id, n) } }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MovieDetailScreen(movieId: Int, onBack: () -> Unit, onOpen: (Int) -> Unit) {
     val vm = appViewModel(key = "movie_$movieId") { MovieDetailViewModel(it, movieId) }
@@ -196,8 +201,8 @@ fun MovieDetailScreen(movieId: Int, onBack: () -> Unit, onOpen: (Int) -> Unit) {
             Column(Modifier.padding(horizontal = 16.dp)) {
                 val genres = m.genreNames(greek)
                 if (genres.isNotEmpty()) {
-                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        genres.forEach { AssistChip(onClick = {}, label = { Text(it) }) }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        genres.forEach { AssistChip(onClick = {}, label = { Text(it, maxLines = 1) }) }
                     }
                 }
                 m.tagline?.takeIf { it.isNotBlank() }?.let {
@@ -206,41 +211,42 @@ fun MovieDetailScreen(movieId: Int, onBack: () -> Unit, onOpen: (Int) -> Unit) {
                 val current = mine
                 if (current == null) {
                     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { vm.setStatus(MovieStatus.PLAN) }, enabled = !busy, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Filled.Add, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.mv_add_plan))
+                        Button(onClick = { vm.setStatus(MovieStatus.PLAN) }, enabled = !busy, modifier = Modifier.weight(1f).height(52.dp)) {
+                            Icon(Icons.Filled.Add, null); Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.mv_add_plan), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
-                        OutlinedButton(onClick = { vm.setStatus(MovieStatus.WATCHED) }, enabled = !busy, modifier = Modifier.weight(1f)) {
-                            Icon(Icons.Filled.Check, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.mv_mark_watched))
+                        OutlinedButton(onClick = { vm.setStatus(MovieStatus.WATCHED) }, enabled = !busy, modifier = Modifier.weight(1f).height(52.dp)) {
+                            Icon(Icons.Filled.Check, null); Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.mv_mark_watched), maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 } else {
                     Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         FilterChip(
                             selected = current.status == MovieStatus.PLAN, onClick = { vm.setStatus(MovieStatus.PLAN) },
-                            label = { Text(stringResource(R.string.mv_plan)) },
+                            label = { Text(stringResource(R.string.mv_plan), maxLines = 1) },
                         )
                         FilterChip(
                             selected = current.status == MovieStatus.WATCHED, onClick = { vm.setStatus(MovieStatus.WATCHED) },
-                            label = { Text(stringResource(R.string.mv_watched)) },
+                            label = { Text(stringResource(R.string.mv_watched), maxLines = 1) },
                             leadingIcon = if (current.status == MovieStatus.WATCHED) { { Icon(Icons.Filled.Check, null, Modifier.size(16.dp)) } } else null,
                         )
                         Spacer(Modifier.weight(1f))
                         IconButton(onClick = { confirmRemove = true }) { Icon(Icons.Filled.Delete, stringResource(R.string.remove)) }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    if (trailer != null) {
-                        TextButton(onClick = { openUrl(ctx, "https://www.youtube.com/watch?v=$trailer") }) {
-                            Icon(Icons.Filled.SmartDisplay, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.trailer))
-                        }
-                    }
-                    TextButton(onClick = { shareMovie(ctx, m) }) {
-                        Icon(Icons.Filled.Share, null); Spacer(Modifier.width(6.dp)); Text(stringResource(R.string.share))
-                    }
-                    IconButton(onClick = {
-                        openUrl(ctx, m.imdbId?.let { "https://www.imdb.com/title/$it/" } ?: "https://www.themoviedb.org/movie/${m.id}")
-                    }) { Icon(Icons.AutoMirrored.Filled.OpenInNew, "IMDb / TMDB") }
-                }
+                ActionBar(
+                    buildList {
+                        if (trailer != null) add(ActionItem(Icons.Filled.SmartDisplay, stringResource(R.string.trailer)) {
+                            openUrl(ctx, "https://www.youtube.com/watch?v=$trailer")
+                        })
+                        add(ActionItem(Icons.Filled.Share, stringResource(R.string.share)) { shareMovie(ctx, m) })
+                        add(ActionItem(Icons.AutoMirrored.Filled.OpenInNew, if (m.imdbId != null) "IMDb" else "TMDB") {
+                            openUrl(ctx, m.imdbId?.let { "https://www.imdb.com/title/$it/" } ?: "https://www.themoviedb.org/movie/${m.id}")
+                        })
+                    },
+                    Modifier.padding(top = 4.dp),
+                )
             }
         }
 

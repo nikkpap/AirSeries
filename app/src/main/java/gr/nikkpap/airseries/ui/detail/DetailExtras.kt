@@ -249,6 +249,15 @@ private val streamingSearch = mapOf(
     "apple tv" to "https://tv.apple.com/search?term=",
 )
 
+fun justWatchUrl(name: String) =
+    "https://www.google.com/search?q=" + java.net.URLEncoder.encode("site:justwatch.com/gr $name", "UTF-8")
+
+fun platformUrl(name: String, network: String): String {
+    val direct = streamingSearch[network.lowercase()]
+    return direct?.let { it + java.net.URLEncoder.encode(name, "UTF-8") }
+        ?: ("https://www.google.com/search?q=" + java.net.URLEncoder.encode("$name $network", "UTF-8"))
+}
+
 /** "Where to watch": JustWatch Greece + the original platform. */
 @Composable
 fun WhereToWatchRow(name: String, network: String?, open: (String) -> Unit) {

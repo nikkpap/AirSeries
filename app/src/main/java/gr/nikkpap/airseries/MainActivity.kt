@@ -46,7 +46,8 @@ class MainActivity : AppCompatActivity() {
             DisposableEffect(dark) {
                 enableEdgeToEdge(
                     statusBarStyle = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark },
-                    navigationBarStyle = SystemBarStyle.auto(Color.argb(0xe6, 0xFF, 0xFF, 0xFF), Color.argb(0x80, 0x1b, 0x1b, 0x1b)) { dark },
+                    // Solid-ish bar behind the phone's 3 buttons so they never sit on top of content.
+                    navigationBarStyle = SystemBarStyle.auto(Color.argb(0xF2, 0xF8, 0xF8, 0xFC), Color.argb(0xF2, 0x0E, 0x0F, 0x1A)) { dark },
                 )
                 onDispose { }
             }

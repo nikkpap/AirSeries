@@ -1,6 +1,7 @@
 package gr.nikkpap.airseries.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -104,4 +105,40 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
         color = MaterialTheme.colorScheme.primary,
         modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 18.dp, bottom = 8.dp),
     )
+}
+
+/** One round icon + label in an [ActionBar]. */
+data class ActionItem(val icon: ImageVector, val label: String, val onClick: () -> Unit)
+
+/**
+ * Evenly spaced icon buttons with labels underneath (like the Play Store).
+ * Never overflows: every item gets the same width and labels are single-line.
+ */
+@Composable
+fun ActionBar(items: List<ActionItem>, modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Row(modifier.fillMaxWidth()) {
+        items.forEach { a ->
+            Column(
+                Modifier.weight(1f)
+                    .clip(RoundedCornerShape(14.dp))
+                    .clickable(onClick = a.onClick)
+                    .padding(vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Box(
+                    Modifier.size(46.dp).background(MaterialTheme.colorScheme.surfaceContainerHigh, androidx.compose.foundation.shape.CircleShape),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(a.icon, a.label, tint = MaterialTheme.colorScheme.primary) }
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    a.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 2.dp),
+                )
+            }
+        }
+    }
 }
