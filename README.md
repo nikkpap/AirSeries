@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="screenshots/banner.png" alt="AirSeries — Οι σειρές και οι ταινίες σου" width="100%">
+
 # 📺 AirSeries
 
 **Οι σειρές και οι ταινίες σου — ποτέ ξανά χαμένο επεισόδιο.**
