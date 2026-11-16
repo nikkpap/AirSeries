@@ -9,6 +9,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.WorkerParameters
 import gr.nikkpap.airseries.container
 import gr.nikkpap.airseries.data.local.ListStatus
+import gr.nikkpap.airseries.data.trakt.Trakt
 import gr.nikkpap.airseries.data.local.MovieStatus
 import gr.nikkpap.airseries.data.remote.TmdbApi
 import gr.nikkpap.airseries.data.local.airTime
@@ -34,6 +35,7 @@ class SyncWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx, 
                 runCatching { c.recommender.refreshCandidates() }
             }
             runCatching { c.movies.refreshPlanned() }
+            runCatching { Trakt.autoPullIfChanged(applicationContext) }
             Updater.newerVersion()?.let { info ->
                 if (c.prefs.lastNotifiedUpdate < info.versionCode) {
                     Notifier.update(applicationContext, info.versionName)

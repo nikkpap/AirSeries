@@ -94,7 +94,7 @@ interface TvMazeApi {
 @Serializable data class CountryDto(val name: String? = null, val code: String? = null)
 @Serializable data class NetworkDto(val id: Int? = null, val name: String? = null, val country: CountryDto? = null)
 @Serializable data class ScheduleDto(val time: String? = null, val days: List<String> = emptyList())
-@Serializable data class ExternalsDto(val imdb: String? = null)
+@Serializable data class ExternalsDto(val imdb: String? = null, val thetvdb: Int? = null)
 
 @Serializable
 data class ShowDto(

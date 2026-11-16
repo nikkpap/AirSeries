@@ -21,6 +21,9 @@ android {
         versionName = "1.0.$buildNumber"
         buildConfigField("String", "GITHUB_REPO", "\"nikkpap/AirSeries\"")
         // Movies: personal TMDB key from the GitHub secret TMDB_API_KEY (empty locally = movies tab shows a hint).
+        // Trakt sync: app credentials from GitHub secrets (empty = Trakt section shows a hint).
+        buildConfigField("String", "TRAKT_CLIENT_ID", "\"${(System.getenv("TRAKT_CLIENT_ID") ?: "").trim()}\"")
+        buildConfigField("String", "TRAKT_CLIENT_SECRET", "\"${(System.getenv("TRAKT_CLIENT_SECRET") ?: "").trim()}\"")
         buildConfigField("String", "TMDB_API_KEY", "\"${(System.getenv("TMDB_API_KEY") ?: "").trim()}\"")
         // Phones only (ARM). Drops x86 copies of the translation engine (~35 MB).
         ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }

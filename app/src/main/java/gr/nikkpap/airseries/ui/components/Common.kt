@@ -132,7 +132,7 @@ fun ActionBar(items: List<ActionItem>, modifier: Modifier = Modifier) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     a.label,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = if (a.label.length > 8) MaterialTheme.typography.labelSmall else MaterialTheme.typography.labelMedium,
                     maxLines = 1,
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     textAlign = TextAlign.Center,

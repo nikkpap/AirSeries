@@ -3,6 +3,7 @@ package gr.nikkpap.airseries.ui
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -91,7 +92,7 @@ fun AppNav(pendingRoute: MutableStateFlow<String?>) {
             }
         },
     ) { pad ->
-        NavHost(nav, startDestination = Tab.Home.route, modifier = Modifier.padding(pad).consumeWindowInsets(pad)) {
+        NavHost(nav, startDestination = Tab.Home.route, modifier = Modifier.padding(pad).consumeWindowInsets(pad).navigationBarsPadding()) {
             composable(Tab.Home.route) {
                 HomeScreen(onOpen = openShow, onSettings = openSettings, onDiscover = { nav.goTab(Tab.Discover.route) })
             }

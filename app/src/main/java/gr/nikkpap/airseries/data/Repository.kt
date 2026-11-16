@@ -11,6 +11,7 @@ import gr.nikkpap.airseries.data.remote.CastDto
 import gr.nikkpap.airseries.data.remote.EpisodeDto
 import gr.nikkpap.airseries.data.remote.ShowDto
 import gr.nikkpap.airseries.data.remote.TvMazeApi
+import gr.nikkpap.airseries.data.trakt.Trakt
 import gr.nikkpap.airseries.widget.WidgetUpdater
 import gr.nikkpap.airseries.work.Scheduler
 import kotlinx.coroutines.Dispatchers
@@ -124,6 +125,7 @@ class Repository(
 
     suspend fun setWatched(epId: Int, watched: Boolean) {
         dao.setWatched(epId, watched, if (watched) System.currentTimeMillis() else null)
+        dao.episode(epId)?.let { e -> dao.show(e.showId)?.let { s -> Trakt.pushEpisodes(ctx, s, listOf(e), watched) } }
         if (watched) dao.episode(epId)?.let { autoStartWatching(it.showId) }
         WidgetUpdater.refresh(ctx)
     }
@@ -149,6 +151,7 @@ class Repository(
             .filter { it.season == season && (!watched || it.isAired(now)) }
             .map { it.id }
         ids.chunked(500).forEach { dao.setWatchedMany(it, watched, if (watched) now else null) }
+        dao.show(showId)?.let { s -> Trakt.pushEpisodes(ctx, s, dao.episodes(showId).filter { it.id in ids.toSet() }, watched) }
         if (watched) autoStartWatching(showId)
         WidgetUpdater.refresh(ctx)
     }
@@ -160,6 +163,7 @@ class Repository(
             .filter { it.isAired(now) && !it.watched && (it.season < ep.season || (it.season == ep.season && (it.number ?: 0) <= (ep.number ?: 0))) }
             .map { it.id }
         ids.chunked(500).forEach { dao.setWatchedMany(it, true, now) }
+        dao.show(ep.showId)?.let { s -> Trakt.pushEpisodes(ctx, s, dao.episodes(ep.showId).filter { it.id in ids.toSet() }, true) }
         autoStartWatching(ep.showId)
         WidgetUpdater.refresh(ctx)
     }

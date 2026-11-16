@@ -3,6 +3,7 @@ package gr.nikkpap.airseries.data
 import android.content.Context
 import gr.nikkpap.airseries.container
 import gr.nikkpap.airseries.data.local.ListStatus
+import gr.nikkpap.airseries.data.local.MovieStatus
 import gr.nikkpap.airseries.data.remote.ShowDto
 import gr.nikkpap.airseries.data.remote.TvMazeApi
 import gr.nikkpap.airseries.widget.WidgetUpdater
@@ -32,6 +33,8 @@ data class ImportItem(
     val watched: Set<Pair<Int, Int>> = emptySet(),
     val listStatus: Int = ListStatus.WATCHING,
 )
+
+data class MovieImportItem(val tmdb: Int, val title: String, val status: Int)
 
 data class ImportState(
     val running: Boolean = false,
@@ -78,7 +81,7 @@ object Importer {
         return parseNames(text)
     }
 
-    private fun parseTraktJson(text: String, status: Int): List<ImportItem> {
+    fun parseTraktJson(text: String, status: Int): List<ImportItem> {
         val root = runCatching { TvMazeApi.json.parseToJsonElement(text) as? JsonArray }.getOrNull() ?: return emptyList()
         return root.mapNotNull { el ->
             val o = runCatching { el.jsonObject }.getOrNull() ?: return@mapNotNull null
@@ -112,7 +115,7 @@ object Importer {
             .map { ImportItem(title = it) }
     }
 
-    private fun merge(items: List<ImportItem>): List<ImportItem> =
+    fun merge(items: List<ImportItem>): List<ImportItem> =
         items.groupBy { it.imdb ?: it.tvdb?.toString() ?: it.title.lowercase() }.values.map { group ->
             group.reduce { a, b ->
                 a.copy(
@@ -123,35 +126,71 @@ object Importer {
         }
 
     // ---------- running ----------
-    fun start(ctx: Context, items: List<ImportItem>) {
-        if (_state.value.running || items.isEmpty()) return
+    fun start(ctx: Context, items: List<ImportItem>, movies: List<MovieImportItem> = emptyList()) {
+        if (_state.value.running || (items.isEmpty() && movies.isEmpty())) return
         val app = ctx.applicationContext
+        scope.launch { execute(app, items, movies, report = true) }
+    }
+
+    /** Same as [start] but suspends until finished (used by Trakt "sync now"). */
+    suspend fun runVisible(ctx: Context, items: List<ImportItem>, movies: List<MovieImportItem>) {
+        if (_state.value.running) return
+        execute(ctx.applicationContext, items, movies, report = true)
+    }
+
+    /**
+     * Adds / updates shows and movies. Shows already in favorites are matched locally by IMDb id
+     * (no network call), so repeated syncs are fast.
+     */
+    suspend fun execute(app: Context, items: List<ImportItem>, movies: List<MovieImportItem>, report: Boolean) {
         val c = app.container
-        _state.value = ImportState(running = true, total = items.size)
-        scope.launch {
-            for ((i, item) in items.withIndex()) {
-                _state.update { it.copy(done = i, current = item.title) }
-                try {
+        val dao = c.db.dao()
+        val total = items.size + movies.size
+        if (report) _state.value = ImportState(running = true, total = total)
+        val byImdb = dao.shows().filter { it.imdb != null }.associateBy { it.imdb!! }
+        for ((i, item) in items.withIndex()) {
+            if (report) _state.update { it.copy(done = i, current = item.title) }
+            try {
+                val localId = item.imdb?.let { byImdb[it]?.id }
+                val showId: Int? = localId ?: kotlin.run {
                     val dto: ShowDto? = item.imdb?.let { c.api.lookup(it, null).body() }
                         ?: item.tvdb?.let { c.api.lookup(null, it).body() }
                         ?: item.title.takeIf { it.isNotBlank() }?.let { c.api.singleSearch(it).body() }
-                    if (dto == null) {
-                        _state.update { it.copy(notFound = it.notFound + item.title) }
-                    } else {
-                        val isNew = c.repo.getShow(dto.id) == null
-                        if (isNew) c.repo.refreshShow(dto.id, isNewFavorite = true)
-                        c.repo.markWatchedPairs(dto.id, item.watched)
-                        if (isNew) c.db.dao().setListStatus(dto.id, item.listStatus)
-                        _state.update { it.copy(added = it.added + if (isNew) 1 else 0, episodes = it.episodes + item.watched.size) }
-                    }
-                } catch (e: Exception) {
-                    _state.update { it.copy(notFound = it.notFound + item.title) }
+                    delay(450) // be gentle with the free TVmaze API
+                    dto?.id
                 }
-                delay(450) // be gentle with the free TVmaze API
+                if (showId == null) {
+                    if (report) _state.update { it.copy(notFound = it.notFound + item.title) }
+                } else {
+                    val isNew = dao.show(showId) == null
+                    if (isNew) c.repo.refreshShow(showId, isNewFavorite = true)
+                    c.repo.markWatchedPairs(showId, item.watched)
+                    if (isNew) dao.setListStatus(showId, item.listStatus)
+                    if (report) _state.update { it.copy(added = it.added + if (isNew) 1 else 0, episodes = it.episodes + item.watched.size) }
+                }
+            } catch (e: Exception) {
+                if (report) _state.update { it.copy(notFound = it.notFound + item.title) }
             }
-            runCatching { Scheduler.rescheduleAll(app) }
-            WidgetUpdater.refresh(app)
-            _state.update { it.copy(running = false, finished = true, done = items.size, current = "") }
         }
+        for ((j, m) in movies.withIndex()) {
+            if (report) _state.update { it.copy(done = items.size + j, current = m.title) }
+            try {
+                val existing = dao.movie(m.tmdb)
+                when {
+                    existing == null -> {
+                        c.movies.addSilently(m.tmdb, m.status)
+                        if (report) _state.update { it.copy(added = it.added + 1) }
+                        delay(150)
+                    }
+                    m.status == MovieStatus.WATCHED && existing.status != MovieStatus.WATCHED ->
+                        dao.setMovieStatus(m.tmdb, MovieStatus.WATCHED, System.currentTimeMillis())
+                }
+            } catch (e: Exception) {
+                if (report) _state.update { it.copy(notFound = it.notFound + m.title) }
+            }
+        }
+        runCatching { Scheduler.rescheduleAll(app) }
+        WidgetUpdater.refresh(app)
+        if (report) _state.update { it.copy(running = false, finished = true, done = total, current = "") }
     }
 }

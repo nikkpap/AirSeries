@@ -43,6 +43,8 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'airseries' }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+          TRAKT_CLIENT_ID: ${{ secrets.TRAKT_CLIENT_ID }}
+          TRAKT_CLIENT_SECRET: ${{ secrets.TRAKT_CLIENT_SECRET }}
         run: |
           chmod +x gradlew
           ./gradlew assembleRelease --no-daemon

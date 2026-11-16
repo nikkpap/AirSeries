@@ -8,6 +8,7 @@ import gr.nikkpap.airseries.data.local.MovieEntity
 import gr.nikkpap.airseries.data.local.MovieStatus
 import gr.nikkpap.airseries.data.remote.TmdbApi
 import gr.nikkpap.airseries.data.remote.TmdbMovie
+import gr.nikkpap.airseries.data.trakt.Trakt
 import gr.nikkpap.airseries.work.Scheduler
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -88,6 +89,12 @@ class MovieRepository(
 
     // ---------- my movies ----------
     suspend fun add(id: Int, status: Int) {
+        addSilently(id, status)
+        if (status == MovieStatus.WATCHED) Trakt.pushMovieWatched(ctx, id, true) else Trakt.pushMovieWatchlist(ctx, id, true)
+    }
+
+    /** Adds without telling Trakt (used when the data came from Trakt). */
+    suspend fun addSilently(id: Int, status: Int) {
         val d = details(id)
         val prev = dao.movie(id)
         val now = System.currentTimeMillis()
@@ -101,12 +108,18 @@ class MovieRepository(
     }
 
     suspend fun setStatus(id: Int, status: Int) {
+        val before = dao.movie(id)?.status
         dao.setMovieStatus(id, status, if (status == MovieStatus.WATCHED) System.currentTimeMillis() else null)
+        if (before != status) {
+            if (status == MovieStatus.WATCHED) Trakt.pushMovieWatched(ctx, id, true)
+            else { Trakt.pushMovieWatched(ctx, id, false); Trakt.pushMovieWatchlist(ctx, id, true) }
+        }
         if (status == MovieStatus.WATCHED) Scheduler.cancelMovie(ctx, id)
         else dao.movie(id)?.let { Scheduler.scheduleMovie(ctx, it) }
     }
 
     suspend fun remove(id: Int) {
+        if (dao.movie(id)?.status == MovieStatus.PLAN) Trakt.pushMovieWatchlist(ctx, id, false)
         dao.deleteMovie(id)
         Scheduler.cancelMovie(ctx, id)
     }

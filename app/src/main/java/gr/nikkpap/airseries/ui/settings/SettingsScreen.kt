@@ -222,6 +222,10 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onImport: () -> Unit
             HorizontalDivider()
 
             // ---- data ----
+            Header(R.string.trakt_header)
+            TraktSection(onShowProgress = onImport)
+            HorizontalDivider()
+
             Header(R.string.set_data)
             ListItem(
                 leadingContent = { Icon(Icons.Filled.Sync, null) },

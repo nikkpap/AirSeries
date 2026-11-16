@@ -69,24 +69,28 @@ fun MyOpinionCard(rating: Int, note: String?, onRate: (Int) -> Unit, onSaveNote:
     ) {
         Column(Modifier.padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 12.dp)) {
             Text(stringResource(R.string.my_opinion), fontWeight = FontWeight.SemiBold)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            // Five equal star slots — the label goes on its own line underneath, so it never wraps.
+            Row(Modifier.fillMaxWidth()) {
                 (1..5).forEach { i ->
-                    IconButton(onClick = { onRate(if (rating == i) 0 else i) }) {
-                        Icon(
-                            if (i <= rating) Icons.Filled.Star else Icons.Outlined.StarBorder,
-                            contentDescription = "$i",
-                            tint = MaterialTheme.colorScheme.secondary,
-                            modifier = Modifier.size(30.dp),
-                        )
+                    Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                        IconButton(onClick = { onRate(if (rating == i) 0 else i) }) {
+                            Icon(
+                                if (i <= rating) Icons.Filled.Star else Icons.Outlined.StarBorder,
+                                contentDescription = "$i",
+                                tint = MaterialTheme.colorScheme.secondary,
+                                modifier = Modifier.size(32.dp),
+                            )
+                        }
                     }
                 }
-                if (rating > 0) {
-                    Text(
-                        stringResource(ratingLabel(rating)),
-                        style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary,
-                    )
-                }
             }
+            Text(
+                if (rating > 0) stringResource(ratingLabel(rating)) else stringResource(R.string.rate_hint),
+                style = MaterialTheme.typography.labelLarge,
+                color = if (rating > 0) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+            )
             var text by rememberSaveable(note) { mutableStateOf(note.orEmpty()) }
             OutlinedTextField(
                 value = text,

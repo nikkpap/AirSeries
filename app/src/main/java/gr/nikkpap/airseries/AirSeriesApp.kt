@@ -10,6 +10,7 @@ import gr.nikkpap.airseries.data.Repository
 import gr.nikkpap.airseries.data.local.AppDatabase
 import gr.nikkpap.airseries.data.remote.TmdbApi
 import gr.nikkpap.airseries.data.remote.TvMazeApi
+import gr.nikkpap.airseries.data.trakt.Trakt
 import gr.nikkpap.airseries.work.Notifier
 import gr.nikkpap.airseries.work.Scheduler
 
@@ -21,6 +22,7 @@ class AirSeriesApp : Application() {
         super.onCreate()
         container = AppContainer(this)
         Notifier.createChannels(this)
+        Trakt.init(this)
         Scheduler.schedulePeriodicSync(this)
         Scheduler.syncNow(this, force = false)
         Scheduler.scheduleDigest(this, ExistingWorkPolicy.KEEP)
